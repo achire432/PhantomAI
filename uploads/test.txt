@@ -1,0 +1,1 @@
+Phantom AI is a local AI assistant built by Achire Steven. It runs on a MacBook Air and provides AI capabilities without cloud dependencies. Features include: chat, memory, web search, and file upload.
