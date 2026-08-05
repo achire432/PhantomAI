@@ -8,3 +8,15 @@ from backend.app.schemas.calendar import CalendarEventCreate, CalendarEventUpdat
 from backend.app.schemas.reminder import ReminderCreate, ReminderUpdate, ReminderResponse
 from backend.app.schemas.context import ContextUpdate, ContextResponse
 from backend.app.schemas.memory import MemoryCreate, MemoryUpdate, MemoryResponse
+from backend.app.schemas.settings import (
+    UserSettingsResponse,
+    UserSettingsUpdate,
+    ToolPermissions,
+    ProfileSettings,
+    PhantomAIBehaviourSettings,
+    AISettings,
+    VoiceSettings,
+    MemorySettings,
+    NotificationSettings,
+    AppearanceSettings
+)

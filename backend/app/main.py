@@ -64,6 +64,7 @@ from backend.app.routers.models import router as models_router
 from backend.app.routers.images import router as images_router
 from backend.app.routers.api_keys import router as api_keys_router
 from backend.app.routers.video import router as video_router
+from backend.app.routers.settings import router as settings_router
 
 
 from backend.app.database.database import engine
@@ -118,6 +119,7 @@ app.include_router(models_router)        # Model Management
 app.include_router(images_router)        # Image Processing
 app.include_router(api_keys_router)      # API Keys
 app.include_router(video_router)         # Video Generation
+app.include_router(settings_router)      # Settings
 # ============================================
 # ROOT ENDPOINTS
 # ============================================
@@ -158,7 +160,8 @@ def root():
             "models",
             "images",
             "api_keys",
-            "video"
+            "video",
+            "settings"
         ]
     }
 
@@ -202,6 +205,7 @@ def list_routers():
             {"name": "Models", "prefix": "/models"},
             {"name": "Images", "prefix": "/images"},
             {"name": "API Keys", "prefix": "/api_keys"},
-            {"name": "Video", "prefix": "/video"}
+            {"name": "Video", "prefix": "/video"},
+            {"name": "Settings", "prefix": "/settings"}
         ]
     }

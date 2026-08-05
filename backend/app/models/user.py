@@ -13,3 +13,6 @@ class User(Base):
 
     # Relationship to conversations
     conversations = relationship("Conversation", back_populates="user", cascade="all, delete-orphan")
+    
+    # Relationship to settings (ADD THIS!)
+    settings = relationship("UserSettings", back_populates="user", uselist=False, cascade="all, delete-orphan")

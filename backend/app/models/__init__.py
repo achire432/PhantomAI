@@ -8,3 +8,5 @@ from backend.app.models.calendar import CalendarEvent
 from backend.app.models.reminder import Reminder
 from backend.app.models.context import UserContext
 from backend.app.models.memory import Memory
+from backend.app.models.email import Email, EmailDraft
+from backend.app.models.settings import UserSettings 
