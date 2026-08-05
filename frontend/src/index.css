@@ -1,0 +1,46 @@
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0a0a0f;
+  min-height: 100vh;
+}
+
+
+
+/* ============================
+   LOGO ANIMATIONS
+   ============================ */
+
+/* Slow rotation for loading/thinking states */
+@keyframes logoSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-logo-spin {
+  animation: logoSpin 20s linear infinite;
+}
+
+/* Subtle pulse glow for voice mode / active state */
+@keyframes logoPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 10px rgba(0, 212, 255, 0.1));
+  }
+  50% {
+    filter: drop-shadow(0 0 30px rgba(0, 212, 255, 0.3));
+  }
+}
+
+.animate-logo-pulse {
+  animation: logoPulse 3s ease-in-out infinite;
+}
+
