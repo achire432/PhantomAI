@@ -1,37 +1,32 @@
+/**
+ * PHANTOMAI APP
+ * =============
+ * Purpose: The main application container.
+ * 
+ * This checks if the user is logged in and shows the right content.
+ * If logged in → shows the app with sidebar.
+ * If not logged in → shows login/register screen.
+ */
+
 import React from 'react';
-import { BrowserRouter } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import AppRoutes from './routes/AppRoutes';
+import { Outlet, Navigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 import StarfieldBackground from './components/StarfieldBackground';
-import Navbar from './components/Navbar';
 
 function App() {
-  return (
-    <BrowserRouter>
-      <AuthProvider>
-        
-        {/* The Starfield is fixed to 100% screen */}
-        <StarfieldBackground />
-        
-        <Navbar />
-        
-        {/* 
-           Main Content Wrapper.
-           We removed 'minHeight: 100vh' to stop it from blocking the stars.
-           We added 'width: 100%' to ensure content spans the full screen.
-        */}
-        <div style={{
-          position: 'relative',
-          zIndex: 1,
-          width: '100%',
-          height: '100%',
-          paddingTop: '70px',
-        }}>
-          <AppRoutes />
-        </div>
+  const { isAuthenticated } = useAuth();
 
-      </AuthProvider>
-    </BrowserRouter>
+  // If not authenticated, redirect to login
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  // If authenticated, show the app with Starfield background
+  return (
+    <div style={{ position: 'relative', minHeight: '100vh', display: 'flex' }}>
+      <StarfieldBackground />
+      <Outlet />
+    </div>
   );
 }
 

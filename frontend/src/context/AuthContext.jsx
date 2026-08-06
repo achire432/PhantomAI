@@ -1,52 +1,51 @@
-/**
- * PHANTOMAI AUTH CONTEXT
- * ======================
- * This provides a global "User" state to the entire application.
- * Any page can check `if (user)` to know if someone is logged in.
- * This is the foundation for Protected Routes.
- */
+import React, { createContext, useState, useContext } from 'react';
+import { auth } from '../api/endpoints';
 
-import React, { createContext, useState, useContext, useEffect } from 'react';
-import { authService } from '../services/authService';
+const AuthContext = createContext();
 
-const AuthContext = createContext(null);
+export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  // On app start, check if user has a token stored in browser
-  useEffect(() => {
-    if (authService.isAuthenticated()) {
-      // In a real scenario, you would call a '/auth/me' endpoint here 
-      // to fetch the actual user's name/email from the token.
-      // For now, we just set a placeholder user to indicate they are logged in.
-      setUser({ isLoggedIn: true });
-    }
-    setLoading(false);
-  }, []);
+  const [loading, setLoading] = useState(false);
 
   const login = async (email, password) => {
-    const data = await authService.login(email, password);
-    // Here you would update the user state with the info returned from backend
-    setUser({ isLoggedIn: true, email });
-    return data;
+    setLoading(true);
+    try {
+      const response = await auth.login(email, password);
+      const { access_token, full_name, user_id } = response.data;
+      localStorage.setItem('token', access_token);
+      setUser({ id: user_id, full_name });
+      setLoading(false);
+      return { success: true };
+    } catch (error) {
+      setLoading(false);
+      return { success: false, error: error.response?.data?.detail || 'Login failed' };
+    }
+  };
+
+  const register = async (full_name, email, password) => {
+    setLoading(true);
+    try {
+      const response = await auth.register(full_name, email, password);
+      setLoading(false);
+      return { success: true, data: response.data };
+    } catch (error) {
+      setLoading(false);
+      return { success: false, error: error.response?.data?.detail || 'Registration failed' };
+    }
   };
 
   const logout = () => {
-    authService.logout();
+    localStorage.removeItem('token');
     setUser(null);
   };
 
-  const value = { user, login, logout, loading };
+  const isAuthenticated = !!localStorage.getItem('token');
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-};
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
+  return (
+    <AuthContext.Provider value={{ user, loading, login, register, logout, isAuthenticated }}>
+      {children}
+    </AuthContext.Provider>
+  );
 };
