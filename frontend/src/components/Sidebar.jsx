@@ -1,7 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import PhantomLogo from './branding/PhantomLogo';
 
 const Sidebar = () => {
   const { user, logout } = useAuth();
@@ -27,7 +26,7 @@ const Sidebar = () => {
       padding: '20px',
     }}>
       <div style={{ marginBottom: '32px' }}>
-        <PhantomLogo variant="compact" size="small" />
+        <h1 style={{ color: '#00d4ff', fontSize: '24px', fontWeight: '700' }}>🧠 PHANTOMAI</h1>
       </div>
 
       <nav style={{ flex: 1 }}>
@@ -82,6 +81,19 @@ const Sidebar = () => {
           transition: 'all 0.2s',
         }}>
           🛠 Tools
+        </Link>
+        <Link to="/voice" style={{
+          display: 'block',
+          padding: '12px 16px',
+          color: '#a0a0b0',
+          textDecoration: 'none',
+          borderRadius: '8px',
+          marginBottom: '4px',
+          fontSize: '14px',
+          fontWeight: '500',
+          transition: 'all 0.2s',
+        }}>
+          🎙️ Voice
         </Link>
         <Link to="/settings" style={{
           display: 'block',

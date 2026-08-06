@@ -1,99 +1,354 @@
 """
 PROACTIVE ASSISTANT SERVICE
 ============================
-Purpose: PhantomAI checks system status and alerts you automatically.
+Purpose:
+    Monitor system health and generate proactive alerts.
 
-Why This Matters:
-- This is what makes JARVIS feel real
-- PhantomAI becomes an active helper, not passive
-- Alerts you before problems get worse
+Responsibilities:
+    - Monitor CPU usage
+    - Monitor RAM usage
+    - Monitor disk usage
+    - Monitor battery level
+    - Store recent alerts in memory
+    - Run monitoring in a background thread
 
-How It Works:
-1. Runs in the background
-2. Checks system metrics
-3. Detects issues
-4. Creates notifications
-5. You get alerts
-
-What Would Happen Without This:
-- PhantomAI would only respond when asked
-- You'd miss important things
-- Not a real assistant
+Important:
+    This service detects problems.
+    A separate notification service can later decide how
+    PhantomAI delivers those alerts to the user.
 """
 
-import psutil
 import threading
 import time
 from datetime import datetime
-from sqlalchemy.orm import Session
+from typing import Optional
 
-# Storage for alerts (in memory for now)
-alerts = []
+import psutil
+
+
+# ============================================================
+# CONFIGURATION
+# ============================================================
+
+CPU_THRESHOLD = 80.0
+RAM_THRESHOLD = 85.0
+DISK_THRESHOLD = 85.0
+BATTERY_THRESHOLD = 20.0
+
+DEFAULT_CHECK_INTERVAL = 60
+
+MAX_ALERTS = 100
+
+
+# ============================================================
+# STATE
+# ============================================================
+
+_alerts = []
+
+_monitor_thread: Optional[threading.Thread] = None
+_monitor_running = False
+
+_state_lock = threading.Lock()
+
+
+# ============================================================
+# SYSTEM CHECK
+# ============================================================
 
 def check_system() -> list:
     """
-    Check system metrics and return alerts.
-    
+    Check current system health.
+
+    Returns a list of alerts.
+
     Checks:
-    1. CPU usage > 80%
-    2. RAM usage > 85%
-    3. Disk usage > 85%
-    4. Running processes > 100
-    
-    Returns:
-    [
-        {"type": "warning", "message": "CPU usage is high: 90%"},
-        {"type": "info", "message": "Disk space is low: 15% remaining"}
-    ]
+        - CPU usage
+        - RAM usage
+        - Disk usage
+        - Battery level
     """
-    alerts = []
-    
-    # Check CPU
+
+    detected_alerts = []
+
+    now = datetime.now().isoformat()
+
+    # --------------------------------------------------------
+    # CPU
+    # --------------------------------------------------------
+
     cpu = psutil.cpu_percent(interval=0.5)
-    if cpu > 80:
-        alerts.append({
+
+    if cpu > CPU_THRESHOLD:
+        detected_alerts.append({
             "type": "warning",
-            "message": f"⚠️ CPU usage is {cpu}% - consider closing some applications",
-            "timestamp": datetime.now().isoformat()
+            "category": "cpu",
+            "message": (
+                f"CPU usage is high: {cpu:.1f}%"
+            ),
+            "value": cpu,
+            "threshold": CPU_THRESHOLD,
+            "timestamp": now,
         })
-    
-    # Check RAM
-    ram = psutil.virtual_memory()
-    if ram.percent > 85:
-        alerts.append({
+
+    # --------------------------------------------------------
+    # RAM
+    # --------------------------------------------------------
+
+    memory = psutil.virtual_memory()
+
+    if memory.percent > RAM_THRESHOLD:
+        detected_alerts.append({
             "type": "warning",
-            "message": f"⚠️ RAM usage is {ram.percent}% - your system may slow down",
-            "timestamp": datetime.now().isoformat()
+            "category": "memory",
+            "message": (
+                f"RAM usage is high: {memory.percent:.1f}%"
+            ),
+            "value": memory.percent,
+            "threshold": RAM_THRESHOLD,
+            "timestamp": now,
         })
-    
-    # Check Disk
-    disk = psutil.disk_usage('/')
-    if disk.percent > 85:
-        alerts.append({
+
+    # --------------------------------------------------------
+    # DISK
+    # --------------------------------------------------------
+
+    disk = psutil.disk_usage("/")
+
+    if disk.percent > DISK_THRESHOLD:
+        detected_alerts.append({
             "type": "warning",
-            "message": f"⚠️ Disk usage is {disk.percent}% - consider freeing up space",
-            "timestamp": datetime.now().isoformat()
+            "category": "disk",
+            "message": (
+                f"Disk usage is high: {disk.percent:.1f}%"
+            ),
+            "value": disk.percent,
+            "threshold": DISK_THRESHOLD,
+            "timestamp": now,
         })
-    
-    # Check Battery
+
+    # --------------------------------------------------------
+    # BATTERY
+    # --------------------------------------------------------
+
     battery = psutil.sensors_battery()
-    if battery and battery.percent < 20 and not battery.power_plugged:
-        alerts.append({
+
+    if (
+        battery is not None
+        and battery.percent < BATTERY_THRESHOLD
+        and not battery.power_plugged
+    ):
+        detected_alerts.append({
             "type": "warning",
-            "message": f"🔋 Battery is at {battery.percent}% - please plug in your charger",
-            "timestamp": datetime.now().isoformat()
+            "category": "battery",
+            "message": (
+                f"Battery is low: {battery.percent:.1f}%"
+            ),
+            "value": battery.percent,
+            "threshold": BATTERY_THRESHOLD,
+            "timestamp": now,
         })
-    
-    return alerts
+
+    return detected_alerts
+
+
+# ============================================================
+# ALERT STORAGE
+# ============================================================
+
+def add_alert(alert: dict) -> None:
+    """
+    Store an alert in memory.
+
+    The list is limited to MAX_ALERTS so it cannot grow
+    indefinitely.
+    """
+
+    global _alerts
+
+    with _state_lock:
+        _alerts.append(alert)
+
+        if len(_alerts) > MAX_ALERTS:
+            _alerts = _alerts[-MAX_ALERTS:]
+
+
+def add_alerts(new_alerts: list) -> None:
+    """
+    Store multiple alerts.
+    """
+
+    for alert in new_alerts:
+        add_alert(alert)
+
 
 def get_alerts() -> list:
     """
-    Get all current alerts.
-    """
-    return alerts
+    Return a copy of the current alerts.
 
-def clear_alerts():
+    Returning a copy prevents external code from accidentally
+    modifying the internal alert storage.
     """
-    Clear all alerts.
+
+    with _state_lock:
+        return list(_alerts)
+
+
+def clear_alerts() -> None:
     """
-    alerts.clear()
+    Remove all stored alerts.
+    """
+
+    global _alerts
+
+    with _state_lock:
+        _alerts.clear()
+
+
+# ============================================================
+# MONITORING LOOP
+# ============================================================
+
+def _monitor_loop(check_interval: int) -> None:
+    """
+    Background monitoring loop.
+
+    Runs until the monitoring service is stopped.
+    """
+
+    global _monitor_running
+
+    print("🧠 PhantomAI proactive monitoring started.")
+
+    while _monitor_running:
+
+        try:
+            detected_alerts = check_system()
+
+            if detected_alerts:
+                add_alerts(detected_alerts)
+
+                for alert in detected_alerts:
+                    print(
+                        f"⚠️ PROACTIVE ALERT: "
+                        f"{alert['message']}"
+                    )
+
+        except Exception as error:
+            print(
+                f"Proactive monitoring error: {error}"
+            )
+
+        # Wait before checking again.
+        # Use small sleeps so stop_monitoring() can respond
+        # relatively quickly.
+        for _ in range(check_interval):
+
+            if not _monitor_running:
+                break
+
+            time.sleep(1)
+
+    print("🧠 PhantomAI proactive monitoring stopped.")
+
+
+# ============================================================
+# START / STOP
+# ============================================================
+
+def start_monitoring(
+    check_interval: int = DEFAULT_CHECK_INTERVAL
+) -> dict:
+    """
+    Start proactive system monitoring.
+
+    If monitoring is already running, no second thread
+    will be created.
+    """
+
+    global _monitor_running
+    global _monitor_thread
+
+    if _monitor_running:
+        return {
+            "success": True,
+            "message": "Proactive monitoring is already running.",
+            "is_running": True,
+        }
+
+    if check_interval < 5:
+        return {
+            "success": False,
+            "message": "Check interval must be at least 5 seconds.",
+            "is_running": False,
+        }
+
+    _monitor_running = True
+
+    _monitor_thread = threading.Thread(
+        target=_monitor_loop,
+        args=(check_interval,),
+        daemon=True,
+        name="phantom-proactive-monitor",
+    )
+
+    _monitor_thread.start()
+
+    return {
+        "success": True,
+        "message": "Proactive monitoring started.",
+        "is_running": True,
+        "check_interval": check_interval,
+    }
+
+
+def stop_monitoring() -> dict:
+    """
+    Stop proactive system monitoring.
+    """
+
+    global _monitor_running
+    global _monitor_thread
+
+    if not _monitor_running:
+        return {
+            "success": True,
+            "message": "Proactive monitoring is already stopped.",
+            "is_running": False,
+        }
+
+    _monitor_running = False
+
+    thread = _monitor_thread
+
+    if thread and thread.is_alive():
+        thread.join(timeout=2)
+
+    _monitor_thread = None
+
+    return {
+        "success": True,
+        "message": "Proactive monitoring stopped.",
+        "is_running": False,
+    }
+
+
+# ============================================================
+# STATUS
+# ============================================================
+
+def get_monitor_status() -> dict:
+    """
+    Return monitoring service status.
+    """
+
+    return {
+        "is_running": _monitor_running,
+        "alert_count": len(get_alerts()),
+        "thresholds": {
+            "cpu": CPU_THRESHOLD,
+            "ram": RAM_THRESHOLD,
+            "disk": DISK_THRESHOLD,
+            "battery": BATTERY_THRESHOLD,
+        },
+    }

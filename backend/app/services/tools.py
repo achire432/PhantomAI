@@ -4,7 +4,7 @@ TOOLS SERVICE
 Purpose: Give the AI the ability to use external tools (like Web Search)
 """
 
-from duckduckgo_search import DDGS
+from ddgs import DDGS
 
 def search_web(query: str) -> str:
     """

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { chat } from '../api/endpoints';
-import StarfieldBackground from '../components/StarfieldBackground';
-import Sidebar from '../components/Sidebar';
 
 const Conversations = () => {
   const { token } = useAuth();
@@ -21,79 +19,33 @@ const Conversations = () => {
         setLoading(false);
       }
     };
-
     if (token) {
       fetchConversations();
     }
   }, [token]);
 
   if (loading) {
-    return (
-      <>
-        <StarfieldBackground />
-        <div style={{ display: 'flex', position: 'relative', zIndex: 1 }}>
-          <Sidebar />
-          <div style={{ flex: 1, marginLeft: '260px', padding: '40px', background: 'rgba(10,10,15,0.85)', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <p style={{ color: '#00d4ff' }}>Loading conversations...</p>
-          </div>
-        </div>
-      </>
-    );
+    return <div style={{ color: '#00d4ff', padding: '40px' }}>Loading...</div>;
   }
 
   return (
-    <>
-      <StarfieldBackground />
-      <div style={{ display: 'flex', position: 'relative', zIndex: 1 }}>
-        <Sidebar />
-        <div style={{
-          flex: 1,
-          marginLeft: '260px',
-          padding: '32px',
-          background: 'rgba(10, 10, 15, 0.85)',
-          minHeight: '100vh',
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '24px',
-          }}>
-            <h1 style={{ color: '#fff', fontSize: '24px' }}>💬 Conversations</h1>
-            <Link to="/chat" style={{
-              padding: '10px 24px',
-              background: '#00d4ff',
-              color: '#0a0a0f',
-              borderRadius: '8px',
-              textDecoration: 'none',
-              fontWeight: '600',
-            }}>
-              + New Chat
+    <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
+      <h1 style={{ color: '#fff' }}>💬 Conversations</h1>
+      {conversations.length === 0 ? (
+        <p style={{ color: '#606080' }}>No conversations yet.</p>
+      ) : (
+        <div>
+          {conversations.map((conv) => (
+            <Link key={conv.id} to={`/chat/${conv.id}`} style={{ textDecoration: 'none', display: 'block', marginBottom: '10px' }}>
+              <div style={{ padding: '16px', background: '#12121a', borderRadius: '8px', border: '1px solid #1a1a2e' }}>
+                <div style={{ color: '#fff', fontWeight: '600' }}>{conv.title || `Chat ${conv.id}`}</div>
+                <div style={{ color: '#606080', fontSize: '12px' }}>{new Date(conv.updated_at).toLocaleDateString()}</div>
+              </div>
             </Link>
-          </div>
-
-          {conversations.length === 0 ? (
-            <p style={{ color: '#606080' }}>No conversations yet. Start a new chat!</p>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {conversations.map((conv) => (
-                <Link key={conv.id} to={`/chat/${conv.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                  <div style={{
-                    padding: '12px 16px',
-                    background: 'rgba(18,18,26,0.6)',
-                    border: '1px solid rgba(26,26,46,0.3)',
-                    borderRadius: '8px',
-                  }}>
-                    <div style={{ color: '#fff', fontWeight: '600' }}>{conv.title || `Chat ${conv.id}`}</div>
-                    <div style={{ color: '#606080', fontSize: '12px' }}>{new Date(conv.updated_at).toLocaleDateString()}</div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          )}
+          ))}
         </div>
-      </div>
-    </>
+      )}
+    </div>
   );
 };
 

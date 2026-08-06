@@ -17,9 +17,12 @@ What You Need:
 2. Get your FREE API key
 3. Add to .env: OPENWEATHER_API_KEY=your_key_here
 """
-
 import requests
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Read API key from environment - NEVER hardcode!
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")
