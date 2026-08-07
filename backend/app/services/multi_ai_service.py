@@ -1,189 +1,205 @@
-"""
-MULTI-MODEL AI SERVICE
-=======================
-Purpose: Route requests to the appropriate AI model.
-
-Why This Matters:
-- One interface for all models
-- Easy to switch between models
-- Each model uses the same API
-
-How It Works:
-1. Check which model is active
-2. Route the request to the correct model
-3. Return the response
-
-What Would Happen Without This:
-- Each model would need separate code
-- Switching models would be hard
-- Code duplication
-"""
+import os
+from typing import Optional, List, Dict
 
 import requests
-import os
-from typing import Optional, List, Dict, Any
-from backend.app.models.ai_models import model_registry
-from backend.app.services.ai import ask_ai as ask_local_ai
 
-def ask_ai_with_model(prompt: str, context: Optional[List[Dict]] = None, model_name: Optional[str] = None) -> str:
+from backend.app.models.ai_models import model_registry
+
+
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+
+def ask_ai_with_model(
+    prompt: str,
+    context: Optional[List[Dict]] = None,
+    model_name: Optional[str] = None,
+) -> str:
     """
-    Ask the AI using the specified model.
-    
-    Parameters:
-    - prompt: The user's message
-    - context: Previous messages for context
-    - model_name: Optional specific model to use
-    
-    Returns:
-    - The AI's response
+    Main AI router.
+
+    Routes requests to the selected AI model.
     """
-    
-    # Use specified model or active model
+
     if model_name:
         active_model = model_registry.models.get(model_name)
     else:
         active_model = model_registry.get_active()
-    
-    if not active_model:
-        return "Error: No active model found."
-    
-    # Route to the appropriate model
-    if active_model.name == "qwen-4b":
-        return ask_local_ai(prompt, context)
-    
-    elif active_model.provider == "Groq":
-        return ask_groq(prompt, context, active_model.name)
-    
-    elif active_model.provider == "OpenAI":
-        return ask_openai(prompt, context, active_model.name)
-    
-    elif active_model.provider == "Anthropic":
-        return ask_anthropic(prompt, context, active_model.name)
-    
-    else:
-        return f"Error: Model '{active_model.name}' not supported."
 
-def ask_groq(prompt: str, context: Optional[List[Dict]] = None, model: str = "groq-llama3") -> str:
-    """Send a request to Groq API."""
-    
+    if not active_model:
+        return "No active AI model is configured."
+
+    if active_model.provider == "Groq":
+        return ask_groq(
+            prompt=prompt,
+            context=context,
+            model=active_model.name,
+        )
+
+    if active_model.provider == "Local":
+        from backend.app.services.ai import ask_ai as ask_local_ai
+
+        return ask_local_ai(
+            prompt=prompt,
+            context=context,
+        )
+
+    return f"AI provider '{active_model.provider}' is not supported."
+
+
+def ask_groq(
+    prompt: str,
+    context: Optional[List[Dict]] = None,
+    model: str = "groq-llama3",
+) -> str:
+    """
+    Send a request to Groq.
+    """
+
     api_key = os.getenv("GROQ_API_KEY")
+
     if not api_key:
-        return "Error: GROQ_API_KEY not set. Please add it to .env"
-    
-    # Map model names to Groq model IDs
+        return "GROQ_API_KEY is not configured."
+
     model_map = {
         "groq-llama3": "llama-3.1-8b-instant",
-        "groq-mixtral": "mixtral-8x7b-32768"
+        "groq-mixtral": "mixtral-8x7b-32768",
     }
-    
-    model_id = model_map.get(model, "llama-3.1-8b-instant")
-    
-    # Build messages
-    messages = []
+
+    model_id = model_map.get(
+        model,
+        "llama-3.1-8b-instant",
+    )
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "CORE RULES:\n"
+            "- Answer the user's question directly.\n"
+            "- Use supplied long-term memory when relevant.\n"
+            "- Long-term memory represents the user's current "
+            "known preferences, goals, projects, and facts.\n"
+            "- If conversation history conflicts with long-term "
+            "memory, prefer long-term memory.\n"
+            "- If the latest user message updates an old fact, "
+            "treat the latest value as current.\n"
+            "- Never invent personal information.\n"
+            "- Do not expose internal memory mechanisms unless "
+            "the user explicitly asks.\n"
+            "- Never say 'the user said'.\n"
+            "- Never say 'the user stated'.\n"
+            "- Never say 'according to memory'.\n"
+            "- Never say 'stored in long-term memory'.\n"
+            "- Speak directly to the person using 'you' and 'your'.\n"
+            "- Keep answers natural and concise.\n"
+            "- Do not repeat yourself."
+            ),
+        }
+    ]
+
     if context:
-        for msg in context:
-            messages.append(msg)
-    messages.append({"role": "user", "content": prompt})
-    
+        for message in context:
+            role = message.get("role")
+            content = message.get("content")
+
+            if role not in {"system", "user", "assistant"}:
+                continue
+
+            if not content:
+                continue
+
+            messages.append(
+                {
+                    "role": role,
+                    "content": str(content),
+                }
+            )
+
+    messages.append(
+        {
+            "role": "user",
+            "content": prompt,
+        }
+    )
+
     headers = {
         "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-    
+
     payload = {
         "model": model_id,
         "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 1024
+        "temperature": 0.2,
+        "max_tokens": 300,
     }
-    
-    try:
-        response = requests.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            json=payload,
-            headers=headers,
-            timeout=30
-        )
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"].strip()
-    except Exception as e:
-        return f"Error: {str(e)}"
 
-def ask_openai(prompt: str, context: Optional[List[Dict]] = None, model: str = "gpt-4o") -> str:
-    """Send a request to OpenAI API."""
-    
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        return "Error: OPENAI_API_KEY not set. Please add it to .env"
-    
-    messages = []
-    if context:
-        for msg in context:
-            messages.append(msg)
-    messages.append({"role": "user", "content": prompt})
-    
-    headers = {
-        "Authorization": f"Bearer {api_key}",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "model": model,
-        "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 1024
-    }
-    
     try:
         response = requests.post(
-            "https://api.openai.com/v1/chat/completions",
-            json=payload,
+            GROQ_API_URL,
             headers=headers,
-            timeout=30
+            json=payload,
+            timeout=60,
         )
-        response.raise_for_status()
-        return response.json()["choices"][0]["message"]["content"].strip()
-    except Exception as e:
-        return f"Error: {str(e)}"
 
-def ask_anthropic(prompt: str, context: Optional[List[Dict]] = None, model: str = "claude-3-opus") -> str:
-    """Send a request to Anthropic Claude API."""
-    
-    api_key = os.getenv("ANTHROPIC_API_KEY")
-    if not api_key:
-        return "Error: ANTHROPIC_API_KEY not set. Please add it to .env"
-    
-    # Build system prompt and messages
-    system = "You are a helpful AI assistant called Phantom AI."
-    messages = []
-    
-    if context:
-        for msg in context:
-            messages.append(msg)
-    messages.append({"role": "user", "content": prompt})
-    
-    headers = {
-        "x-api-key": api_key,
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "model": model,
-        "system": system,
-        "messages": messages,
-        "temperature": 0.7,
-        "max_tokens": 1024
-    }
-    
-    try:
-        response = requests.post(
-            "https://api.anthropic.com/v1/messages",
-            json=payload,
-            headers=headers,
-            timeout=30
-        )
         response.raise_for_status()
-        return response.json()["content"][0]["text"].strip()
-    except Exception as e:
-        return f"Error: {str(e)}"
+
+        data = response.json()
+
+        choices = data.get("choices", [])
+
+        if not choices:
+            return "Groq returned no response."
+
+        message = choices[0].get("message", {})
+
+        content = message.get("content")
+
+        if not content:
+            return "Groq returned an empty response."
+
+        return clean_response(content)
+
+    except requests.exceptions.Timeout:
+        return "Groq request timed out."
+
+    except requests.exceptions.RequestException as error:
+        return f"Groq request failed: {error}"
+
+    except Exception as error:
+        return f"AI error: {error}"
+
+
+def clean_response(response: str) -> str:
+    """
+    Clean unnecessary AI prefixes and repeated whitespace.
+    """
+
+    if not response:
+        return ""
+
+    response = response.strip()
+
+    prefixes = [
+        "Answer:",
+        "ANSWER:",
+        "PhantomAI:",
+        "Phantom AI:",
+    ]
+
+    for prefix in prefixes:
+        if response.startswith(prefix):
+            response = response[len(prefix):].strip()
+
+    lines = []
+
+    for line in response.splitlines():
+        line = line.strip()
+
+        if not line:
+            continue
+
+        if line not in lines:
+            lines.append(line)
+
+    return " ".join(lines).strip()
