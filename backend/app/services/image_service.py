@@ -1,223 +1,426 @@
-"""
-IMAGE SERVICE
-==============
-Purpose: Generate images from text descriptions.
-
-Why This Matters:
-- Users can create visual content
-- PhantomAI can illustrate concepts
-- Creative and fun feature
-
-How It Works:
-1. User provides a text description
-2. Sends to Stability AI (free tier)
-3. Returns the generated image
-
-What Would Happen Without This:
-- No visual creation capability
-- Text-only assistant
-- Less creative
-
-Libraries:
-- requests: For API calls
-- pillow: For image processing (optional)
-
-Stability AI API Notes:
-- Free tier gives ~25 free generations
-- v2 endpoint: api.stability.ai/v2beta/stable-image/generate/ultra
-- v1 endpoint: api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image
-"""
-
 import os
 import base64
-import requests
 import logging
 from io import BytesIO
+from typing import Optional
+
+import requests
 from PIL import Image
 
-# Setup logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Read API key from environment
+
 STABILITY_API_KEY = os.getenv("STABILITY_API_KEY")
 
 
-def generate_image_stability(prompt: str, height: int = 1024, width: int = 1024) -> dict:
+# ============================================================
+# STABILITY AI
+# ============================================================
+
+def generate_image_stability(
+    prompt: str,
+    aspect_ratio: str = "1:1",
+) -> dict:
     """
-    Generate an image using Stability AI (Stable Diffusion).
-    
-    How It Works:
-    1. Sends prompt to Stability AI API
-    2. Returns base64 encoded image
-    
-    Returns:
-    {
-        "success": True,
-        "image": "base64_encoded_image",
-        "prompt": prompt
-    }
+    Generate an image using Stability AI.
+
+    Uses multipart/form-data as required by the
+    Stability AI stable-image API.
     """
-    
-    # Check if API key exists
-    logger.info(f"🔑 STABILITY_API_KEY exists: {bool(STABILITY_API_KEY)}")
-    
-    if not STABILITY_API_KEY:
+
+    api_key = os.getenv("STABILITY_API_KEY")
+
+    if not api_key:
         return {
-            "success": False, 
-            "error": "STABILITY_API_KEY not set. Please add to .env.\n\nGet your free key at: https://platform.stability.ai"
+            "success": False,
+            "error": (
+                "STABILITY_API_KEY is not configured. "
+                "Add it to your .env file and restart the backend."
+            ),
         }
-    
-    # Log safely (never print full key)
-    logger.info(f"🔑 API Key length: {len(STABILITY_API_KEY)} characters")
-    logger.info(f"🔑 API Key prefix: {STABILITY_API_KEY[:10]}...")
-    
+
+    if not prompt or not prompt.strip():
+        return {
+            "success": False,
+            "error": "Image prompt cannot be empty.",
+        }
+
+    url = (
+        "https://api.stability.ai/"
+        "v2beta/stable-image/generate/ultra"
+    )
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Accept": "image/*",
+    }
+
+    # IMPORTANT:
+    #
+    # Stability expects multipart/form-data.
+    #
+    # Do NOT use:
+    #
+    # json=payload
+    #
+    # because that sends application/json.
+    #
+    # data=payload causes requests to create the
+    # multipart/form-data request when combined with files.
+
+    data = {
+        "prompt": prompt.strip(),
+        "output_format": "png",
+        "aspect_ratio": aspect_ratio,
+    }
+
     try:
-        # ============================================
-        # Try v2 endpoint first (NEWER API)
-        # ============================================
-        url_v2 = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
-        logger.info(f"🌐 Attempting v2 endpoint: {url_v2}")
-        
-        payload_v2 = {
-            "prompt": prompt,
-            "output_format": "png"
-        }
-        
-        headers = {
-            "Authorization": f"Bearer {STABILITY_API_KEY}",
-            "Content-Type": "application/json",
-        }
-        
-        response = requests.post(url_v2, json=payload_v2, headers=headers, timeout=60)
-        
-        logger.info(f"📊 v2 Status Code: {response.status_code}")
-        
-        # If v2 works, return the result
+        logger.info("Sending image request to Stability AI")
+
+        response = requests.post(
+            url,
+            headers=headers,
+            data=data,
+            files={
+                "none": (
+                    None,
+                    "",
+                    "application/octet-stream",
+                )
+            },
+            timeout=120,
+        )
+
+        logger.info(
+            "Stability response status: %s",
+            response.status_code,
+        )
+
         if response.status_code == 200:
-            logger.info("✅ v2 endpoint succeeded!")
-            image_base64 = base64.b64encode(response.content).decode('utf-8')
+            image_base64 = base64.b64encode(
+                response.content
+            ).decode("utf-8")
+
             return {
                 "success": True,
                 "image": image_base64,
                 "prompt": prompt,
                 "format": "base64",
-                "provider": "stability-v2"
+                "provider": "stability",
             }
-        
-        # Log v2 error for debugging
+
+        # ----------------------------------------------------
+        # ERROR HANDLING
+        # ----------------------------------------------------
+
         try:
             error_data = response.json()
-            logger.error(f"❌ v2 Error Response: {error_data}")
-        except:
-            logger.error(f"❌ v2 Error Text: {response.text[:500]}")
-        
-        # ============================================
-        # Fallback to v1 endpoint (OLDER API)
-        # ============================================
-        logger.info("🔄 Falling back to v1 endpoint...")
-        url_v1 = "https://api.stability.ai/v1/generation/stable-diffusion-xl-1024-v1-0/text-to-image"
-        
-        payload_v1 = {
-            "text_prompts": [{"text": prompt, "weight": 1}],
-            "cfg_scale": 7,
-            "height": height,
-            "width": width,
-            "samples": 1,
-            "steps": 30,
-        }
-        
-        response = requests.post(url_v1, json=payload_v1, headers=headers, timeout=60)
-        
-        logger.info(f"📊 v1 Status Code: {response.status_code}")
-        
-        # Handle different error codes for v1
+        except Exception:
+            error_data = response.text[:1000]
+
+        logger.error(
+            "Stability AI error: %s",
+            error_data,
+        )
+
+        if response.status_code == 400:
+            return {
+                "success": False,
+                "error": (
+                    f"Stability AI rejected the request: "
+                    f"{error_data}"
+                ),
+            }
+
         if response.status_code == 401:
             return {
                 "success": False,
-                "error": "Invalid Stability AI API key. Please check your STABILITY_API_KEY in .env"
+                "error": (
+                    "Stability AI API key is invalid "
+                    "or unauthorized."
+                ),
             }
-        
+
+        if response.status_code == 402:
+            return {
+                "success": False,
+                "error": (
+                    "Stability AI requires available "
+                    "credits for this generation."
+                ),
+            }
+
+        if response.status_code == 403:
+            return {
+                "success": False,
+                "error": (
+                    "Stability AI denied this request. "
+                    "Check your account/API permissions."
+                ),
+            }
+
         if response.status_code == 429:
             return {
                 "success": False,
-                "error": "Rate limit exceeded. Your free tier may be exhausted. Please wait or upgrade."
+                "error": (
+                    "Stability AI rate limit reached. "
+                    "Please wait and try again."
+                ),
             }
-        
-        if response.status_code == 400:
-            # Try to get the actual error from Stability AI
-            try:
-                error_data = response.json()
-                logger.error(f"❌ v1 Error Response: {error_data}")
-                return {
-                    "success": False,
-                    "error": f"Stability API Error: {error_data}"
-                }
-            except:
-                return {
-                    "success": False,
-                    "error": f"Stability API Error (400): {response.text[:200]}"
-                }
-        
-        response.raise_for_status()
-        
-        # Get the image from the response
-        data = response.json()
-        image_base64 = data["artifacts"][0]["base64"]
-        
+
+        return {
+            "success": False,
+            "error": (
+                f"Stability AI returned HTTP "
+                f"{response.status_code}: "
+                f"{error_data}"
+            ),
+        }
+
+    except requests.exceptions.Timeout:
+        return {
+            "success": False,
+            "error": (
+                "Stability AI request timed out."
+            ),
+        }
+
+    except requests.exceptions.RequestException as error:
+        logger.exception(
+            "Stability AI request failed"
+        )
+
+        return {
+            "success": False,
+            "error": (
+                f"Stability AI request failed: {error}"
+            ),
+        }
+
+    except Exception as error:
+        logger.exception(
+            "Unexpected image generation error"
+        )
+
+        return {
+            "success": False,
+            "error": str(error),
+        }
+
+
+# ============================================================
+# OPENAI IMAGE GENERATION
+# ============================================================
+
+def generate_image_openai(
+    prompt: str,
+) -> dict:
+    """
+    Generate an image through OpenAI.
+
+    This is kept separate from Stability so PhantomAI
+    can support multiple image providers later.
+    """
+
+    api_key = os.getenv("OPENAI_API_KEY")
+
+    if not api_key:
+        return {
+            "success": False,
+            "error": (
+                "OPENAI_API_KEY is not configured."
+            ),
+        }
+
+    try:
+        from openai import OpenAI
+
+        client = OpenAI(
+            api_key=api_key
+        )
+
+        result = client.images.generate(
+            model="gpt-image-1",
+            prompt=prompt,
+            size="1024x1024",
+        )
+
+        if not result.data:
+            return {
+                "success": False,
+                "error": (
+                    "OpenAI returned no image."
+                ),
+            }
+
+        image_data = result.data[0]
+
+        # OpenAI can return base64 image data.
+        if getattr(
+            image_data,
+            "b64_json",
+            None,
+        ):
+            return {
+                "success": True,
+                "image": image_data.b64_json,
+                "prompt": prompt,
+                "format": "base64",
+                "provider": "openai",
+            }
+
+        # Some responses may provide a URL.
+        if getattr(
+            image_data,
+            "url",
+            None,
+        ):
+            return {
+                "success": True,
+                "image": image_data.url,
+                "prompt": prompt,
+                "format": "url",
+                "provider": "openai",
+            }
+
+        return {
+            "success": False,
+            "error": (
+                "OpenAI returned an unsupported "
+                "image response format."
+            ),
+        }
+
+    except ImportError:
+        return {
+            "success": False,
+            "error": (
+                "OpenAI Python package is not installed."
+            ),
+        }
+
+    except Exception as error:
+        logger.exception(
+            "OpenAI image generation failed"
+        )
+
+        return {
+            "success": False,
+            "error": str(error),
+        }
+
+
+# ============================================================
+# MAIN IMAGE ROUTER
+# ============================================================
+
+def generate_image(
+    prompt: str,
+    provider: str = "stability",
+    aspect_ratio: str = "1:1",
+) -> dict:
+    """
+    Main image generation service.
+
+    Provider names:
+
+        stability
+        openai
+
+    Future providers can be added here without changing
+    the frontend architecture.
+    """
+
+    provider = (
+        provider or "stability"
+    ).strip().lower()
+
+    if provider == "stability":
+        return generate_image_stability(
+            prompt=prompt,
+            aspect_ratio=aspect_ratio,
+        )
+
+    if provider in {
+        "openai",
+        "dalle",
+    }:
+        return generate_image_openai(
+            prompt=prompt,
+        )
+
+    return {
+        "success": False,
+        "error": (
+            f"Unsupported image provider: "
+            f"{provider}"
+        ),
+    }
+
+
+# ============================================================
+# BASE64 → FILE
+# ============================================================
+
+def decode_image_to_file(
+    base64_image: str,
+    output_path: str,
+) -> dict:
+    """
+    Decode a base64 image and save it to disk.
+    """
+
+    try:
+        image_data = base64.b64decode(
+            base64_image
+        )
+
+        with open(
+            output_path,
+            "wb",
+        ) as file:
+            file.write(image_data)
+
         return {
             "success": True,
-            "image": image_base64,
-            "prompt": prompt,
-            "format": "base64",
-            "provider": "stability-v1"
+            "path": output_path,
         }
-        
-    except requests.exceptions.RequestException as e:
-        logger.error(f"❌ Request Exception: {str(e)}")
-        return {"success": False, "error": f"Request failed: {str(e)}"}
-    except Exception as e:
-        logger.error(f"❌ Unexpected Exception: {str(e)}")
-        return {"success": False, "error": str(e)}
+
+    except Exception as error:
+        return {
+            "success": False,
+            "error": str(error),
+        }
 
 
-def generate_image(prompt: str, provider: str = "stability") -> dict:
-    """
-    Generate an image using the specified provider.
-    
-    Currently supports:
-    - stability: Stability AI (free tier)
-    - dalle: OpenAI DALL-E (requires OpenAI API key)
-    """
-    if provider == "stability":
-        return generate_image_stability(prompt)
-    elif provider == "dalle":
-        return {"success": False, "error": "DALL-E support requires OpenAI API key"}
-    else:
-        return {"success": False, "error": f"Unknown provider: {provider}"}
+# ============================================================
+# DISPLAY IMAGE
+# ============================================================
 
+def display_image(
+    base64_image: str,
+) -> dict:
+    """
+    Open a base64 image locally for testing.
+    """
 
-def decode_image_to_file(base64_image: str, output_path: str) -> dict:
-    """
-    Decode a base64 image and save it to a file.
-    """
     try:
-        image_data = base64.b64decode(base64_image)
-        with open(output_path, 'wb') as f:
-            f.write(image_data)
-        return {"success": True, "path": output_path}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+        image_data = base64.b64decode(
+            base64_image
+        )
 
+        image = Image.open(
+            BytesIO(image_data)
+        )
 
-def display_image(base64_image: str):
-    """
-    Display a base64 image (for testing).
-    """
-    try:
-        image_data = base64.b64decode(base64_image)
-        image = Image.open(BytesIO(image_data))
         image.show()
-        return {"success": True}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+
+        return {
+            "success": True,
+        }
+
+    except Exception as error:
+        return {
+            "success": False,
+            "error": str(error),
+        }

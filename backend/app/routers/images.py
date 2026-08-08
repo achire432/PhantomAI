@@ -1,64 +1,97 @@
-"""
-IMAGE ROUTER
-=============
-Purpose: Handle image generation API requests.
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+)
 
-Flow:
-1. Authenticate user
-2. Generate image
-3. Create user-owned conversation
-4. Save user's prompt
-5. Save PhantomAI response
-6. Return generated image
-"""
-
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from pydantic import BaseModel
+
+from sqlalchemy.orm import Session
 
 from backend.app.database.database import get_db
 from backend.app.dependencies.auth import get_current_user
 from backend.app.models.user import User
-from backend.app.services.image_service import generate_image
+
+from backend.app.services.image_service import (
+    generate_image,
+)
+
 from backend.app.services.conversation import (
     create_conversation,
     add_message,
 )
-from backend.app.schemas.message import MessageCreate
 
-
-class ImageRequest(BaseModel):
-    prompt: str
-    provider: str = "stability"
+from backend.app.schemas.message import (
+    MessageCreate,
+)
 
 
 router = APIRouter(
     prefix="/images",
-    tags=["Images"]
+    tags=["Images"],
 )
 
+
+# ============================================================
+# REQUEST MODEL
+# ============================================================
+
+class ImageRequest(BaseModel):
+    prompt: str
+    provider: str = "stability"
+    aspect_ratio: str = "1:1"
+
+
+# ============================================================
+# GENERATE IMAGE
+# ============================================================
 
 @router.post("/generate")
 def generate_image_endpoint(
     request: ImageRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    current_user: User = Depends(
+        get_current_user
+    ),
+    db: Session = Depends(
+        get_db
+    ),
 ):
     """
-    Generate an image from a text description.
+    Generate an image.
+
+    Flow:
+
+    1. Authenticate user.
+    2. Validate prompt.
+    3. Generate image through selected provider.
+    4. Create conversation.
+    5. Save user's request.
+    6. Save PhantomAI response.
+    7. Return image.
     """
 
-    # Validate prompt
-    if not request.prompt.strip():
+    # --------------------------------------------------------
+    # VALIDATE PROMPT
+    # --------------------------------------------------------
+
+    prompt = request.prompt.strip()
+
+    if not prompt:
         raise HTTPException(
             status_code=400,
-            detail="Image prompt cannot be empty."
+            detail=(
+                "Image prompt cannot be empty."
+            ),
         )
 
-    # Generate image
+    # --------------------------------------------------------
+    # GENERATE IMAGE
+    # --------------------------------------------------------
+
     result = generate_image(
-        request.prompt,
-        request.provider
+        prompt=prompt,
+        provider=request.provider,
+        aspect_ratio=request.aspect_ratio,
     )
 
     if not result.get("success"):
@@ -66,49 +99,72 @@ def generate_image_endpoint(
             status_code=400,
             detail=result.get(
                 "error",
-                "Image generation failed."
-            )
+                "Image generation failed.",
+            ),
         )
 
-    # Create conversation owned by current user
+    # --------------------------------------------------------
+    # CREATE CONVERSATION
+    # --------------------------------------------------------
+
     conversation = create_conversation(
         db,
         current_user,
-        f"🎨 Image: {request.prompt[:50]}..."
+        f"🎨 Image: {prompt[:50]}...",
     )
 
-    # Save user prompt
+    # --------------------------------------------------------
+    # SAVE USER PROMPT
+    # --------------------------------------------------------
+
     prompt_message = MessageCreate(
         role="user",
-        content=f"Generate an image: {request.prompt}"
+        content=(
+            f"Generate an image: {prompt}"
+        ),
     )
 
     add_message(
         db,
         conversation,
-        prompt_message
+        prompt_message,
     )
 
-    # Save AI response
+    # --------------------------------------------------------
+    # SAVE ASSISTANT RESPONSE
+    # --------------------------------------------------------
+
     ai_message = MessageCreate(
         role="assistant",
         content=(
             f"🎨 Generated image for: "
-            f"'{request.prompt}'\n\n"
-            "Image data is available in the response."
-        )
+            f"'{prompt}'\n\n"
+            f"Provider: "
+            f"{result.get('provider', request.provider)}"
+        ),
     )
 
     add_message(
         db,
         conversation,
-        ai_message
+        ai_message,
     )
+
+    # --------------------------------------------------------
+    # RETURN RESULT
+    # --------------------------------------------------------
 
     return {
         "success": True,
         "image": result.get("image"),
-        "prompt": request.prompt,
-        "provider": request.provider,
-        "conversation_id": conversation.id
+        "prompt": prompt,
+        "provider": result.get(
+            "provider",
+            request.provider,
+        ),
+        "format": result.get(
+            "format",
+            "base64",
+        ),
+        "conversation_id": conversation.id,
     }

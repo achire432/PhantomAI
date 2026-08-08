@@ -2,6 +2,7 @@ import React, {
   createContext,
   useState,
   useContext,
+  useEffect,
 } from 'react';
 
 import { auth } from '../api/endpoints';
@@ -11,26 +12,26 @@ const AuthContext = createContext(null);
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
-
-  /*
-  |--------------------------------------------------------------------------
-  | TOKEN
-  |--------------------------------------------------------------------------
-  |
-  | Read the existing token from localStorage when the application starts.
-  | This means refreshing the browser doesn't immediately make the user
-  | appear logged out.
-  |
-  */
-
   const [token, setToken] = useState(
     () => localStorage.getItem('token')
   );
 
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem('user');
+
+    if (!storedUser) {
+      return null;
+    }
+
+    try {
+      return JSON.parse(storedUser);
+    } catch {
+      localStorage.removeItem('user');
+      return null;
+    }
+  });
 
   const [loading, setLoading] = useState(false);
-
 
   /*
   |--------------------------------------------------------------------------
@@ -39,51 +40,45 @@ export const AuthProvider = ({ children }) => {
   */
 
   const login = async (email, password) => {
-
     setLoading(true);
 
     try {
-
       const response = await auth.login(email, password);
 
       const {
         access_token,
-        full_name,
         user_id,
+        full_name,
+        email: returnedEmail,
       } = response.data;
 
-
-      // Save token permanently in browser storage
-      localStorage.setItem('token', access_token);
-
-      // Update React state
-      setToken(access_token);
-
-      setUser({
+      const userData = {
         id: user_id,
         full_name,
-      });
+        email: returnedEmail || email,
+      };
+
+      localStorage.setItem('token', access_token);
+      localStorage.setItem('user', JSON.stringify(userData));
+
+      setToken(access_token);
+      setUser(userData);
 
       return {
         success: true,
+        data: userData,
       };
-
     } catch (error) {
-
       return {
         success: false,
         error:
           error.response?.data?.detail ||
           'Login failed',
       };
-
     } finally {
-
       setLoading(false);
-
     }
   };
-
 
   /*
   |--------------------------------------------------------------------------
@@ -96,11 +91,9 @@ export const AuthProvider = ({ children }) => {
     email,
     password
   ) => {
-
     setLoading(true);
 
     try {
-
       const response = await auth.register(
         full_name,
         email,
@@ -111,23 +104,17 @@ export const AuthProvider = ({ children }) => {
         success: true,
         data: response.data,
       };
-
     } catch (error) {
-
       return {
         success: false,
         error:
           error.response?.data?.detail ||
           'Registration failed',
       };
-
     } finally {
-
       setLoading(false);
-
     }
   };
-
 
   /*
   |--------------------------------------------------------------------------
@@ -136,14 +123,12 @@ export const AuthProvider = ({ children }) => {
   */
 
   const logout = () => {
-
     localStorage.removeItem('token');
+    localStorage.removeItem('user');
 
     setToken(null);
-
     setUser(null);
   };
-
 
   /*
   |--------------------------------------------------------------------------
@@ -151,8 +136,7 @@ export const AuthProvider = ({ children }) => {
   |--------------------------------------------------------------------------
   */
 
-  const isAuthenticated = !!token;
-
+  const isAuthenticated = Boolean(token);
 
   /*
   |--------------------------------------------------------------------------

@@ -1,10 +1,12 @@
 import React from 'react';
-import { Outlet, Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
+
 import { useAuth } from './context/AuthContext';
+
 import StarfieldBackground from './components/StarfieldBackground';
 import Sidebar from './components/Sidebar';
 
-function App() {
+const App = () => {
   const { isAuthenticated } = useAuth();
 
   if (!isAuthenticated) {
@@ -12,20 +14,37 @@ function App() {
   }
 
   return (
-    <div style={{ position: 'relative', minHeight: '100vh', display: 'flex' }}>
-      <StarfieldBackground />
-      <Sidebar />
-      <div style={{
-        flex: 1,
-        marginLeft: '260px',
-        background: 'rgba(10, 10, 15, 0.85)',
+    <div
+      style={{
         minHeight: '100vh',
-        overflowY: 'auto',
-      }}>
-        <Outlet />
+        position: 'relative',
+        background: '#050509',
+        color: '#ffffff',
+      }}
+    >
+      <StarfieldBackground />
+
+      <div
+        style={{
+          position: 'relative',
+          zIndex: 1,
+          minHeight: '100vh',
+        }}
+      >
+        <Sidebar />
+
+        <main
+          style={{
+            marginLeft: '260px',
+            minHeight: '100vh',
+            position: 'relative',
+          }}
+        >
+          <Outlet />
+        </main>
       </div>
     </div>
   );
-}
+};
 
 export default App;

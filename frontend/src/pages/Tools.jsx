@@ -1,187 +1,501 @@
-import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { tools } from '../api/endpoints';
+import React, { useState } from 'react';
+
+import ImageGenerationTool from '../components/tools/ImageGenerationTool';
+import VideoGenerationTool from '../components/tools/VideoGenerationTool';
+
+
+const TOOL_LIST = [
+  {
+    id: 'image',
+    name: 'Image Generation',
+    icon: '🎨',
+    description: 'Create images from text prompts.',
+    category: 'AI Generation',
+  },
+
+  {
+    id: 'video',
+    name: 'Video Generation',
+    icon: '🎬',
+    description: 'Create videos from text and images.',
+    category: 'AI Generation',
+  },
+
+  {
+    id: 'pdf',
+    name: 'PDF Tools',
+    icon: '📄',
+    description: 'Read, analyze and work with PDF files.',
+    category: 'Documents',
+  },
+
+  {
+    id: 'voice',
+    name: 'Voice',
+    icon: '🎤',
+    description: 'Talk with PhantomAI using your voice.',
+    category: 'AI',
+  },
+
+  {
+    id: 'database',
+    name: 'Database',
+    icon: '🗄️',
+    description: 'Inspect and work with databases.',
+    category: 'Development',
+  },
+
+  {
+    id: 'code',
+    name: 'Code Analysis',
+    icon: '💻',
+    description: 'Analyze, explain and inspect code.',
+    category: 'Development',
+  },
+
+  {
+    id: 'calculator',
+    name: 'Calculator',
+    icon: '🧮',
+    description: 'Perform calculations.',
+    category: 'Utilities',
+  },
+
+  {
+    id: 'weather',
+    name: 'Weather',
+    icon: '🌤️',
+    description: 'Check weather information.',
+    category: 'Utilities',
+  },
+
+  {
+    id: 'files',
+    name: 'Files',
+    icon: '📁',
+    description: 'Read and manage files.',
+    category: 'Documents',
+  },
+
+  {
+    id: 'web',
+    name: 'Web Search',
+    icon: '🌐',
+    description: 'Search the web for information.',
+    category: 'Research',
+  },
+];
+
 
 const Tools = () => {
-  const { token } = useAuth();
-  const [notes, setNotes] = useState([]);
-  const [tasks, setTasks] = useState([]);
-  const [weather, setWeather] = useState('');
-  const [city, setCity] = useState('Kampala');
-  const [loading, setLoading] = useState({ notes: true, tasks: true });
-  const [activeTool, setActiveTool] = useState('notes');
 
-  useEffect(() => {
-    if (!token) return;
-    fetchNotes();
-    fetchTasks();
-  }, [token]);
+  const [activeTool, setActiveTool] =
+    useState('image');
 
-  const fetchNotes = async () => {
-    try {
-      const response = await tools.notes.getAll();
-      setNotes(response.data);
-      setLoading((prev) => ({ ...prev, notes: false }));
-    } catch (err) {
-      console.error('Failed to fetch notes:', err);
-      setLoading((prev) => ({ ...prev, notes: false }));
+
+  const activeToolData =
+    TOOL_LIST.find(
+      (tool) =>
+        tool.id === activeTool
+    );
+
+
+  const renderToolWorkspace = () => {
+
+    switch (activeTool) {
+
+      case 'image':
+        return (
+          <ImageGenerationTool />
+        );
+
+
+      case 'video':
+        return (
+          <VideoGenerationTool />
+        );
+
+
+      case 'pdf':
+        return (
+          <ComingSoon
+            icon="📄"
+            name="PDF Tools"
+          />
+        );
+
+
+      case 'voice':
+        return (
+          <ComingSoon
+            icon="🎤"
+            name="Voice"
+          />
+        );
+
+
+      case 'database':
+        return (
+          <ComingSoon
+            icon="🗄️"
+            name="Database"
+          />
+        );
+
+
+      case 'code':
+        return (
+          <ComingSoon
+            icon="💻"
+            name="Code Analysis"
+          />
+        );
+
+
+      case 'calculator':
+        return (
+          <ComingSoon
+            icon="🧮"
+            name="Calculator"
+          />
+        );
+
+
+      case 'weather':
+        return (
+          <ComingSoon
+            icon="🌤️"
+            name="Weather"
+          />
+        );
+
+
+      case 'files':
+        return (
+          <ComingSoon
+            icon="📁"
+            name="Files"
+          />
+        );
+
+
+      case 'web':
+        return (
+          <ComingSoon
+            icon="🌐"
+            name="Web Search"
+          />
+        );
+
+
+      default:
+        return null;
     }
   };
 
-  const fetchTasks = async () => {
-    try {
-      const response = await tools.tasks.getAll();
-      setTasks(response.data);
-      setLoading((prev) => ({ ...prev, tasks: false }));
-    } catch (err) {
-      console.error('Failed to fetch tasks:', err);
-      setLoading((prev) => ({ ...prev, tasks: false }));
-    }
-  };
-
-  const getWeather = async () => {
-    try {
-      const response = await tools.weather(city);
-      setWeather(response.data);
-    } catch (err) {
-      console.error('Failed to get weather:', err);
-      setWeather({ error: 'Failed to get weather' });
-    }
-  };
-
-  const toolsList = [
-    { id: 'notes', name: '📝 Notes', description: 'Save and retrieve notes' },
-    { id: 'tasks', name: '✅ Tasks', description: 'Manage your tasks' },
-    { id: 'weather', name: '🌤️ Weather', description: 'Check weather anywhere' },
-    { id: 'calculator', name: '🧮 Calculator', description: 'Math operations' },
-    { id: 'calendar', name: '📅 Calendar', description: 'Manage events' },
-    { id: 'reminders', name: '⏰ Reminders', description: 'Set reminders' },
-    { id: 'git', name: '📂 Git', description: 'Git status and logs' },
-    { id: 'system', name: '💻 System Info', description: 'CPU, RAM, Disk' },
-  ];
 
   return (
-    <div style={{ padding: '40px', maxWidth: '800px', margin: '0 auto' }}>
-      <h1 style={{ color: '#fff', marginBottom: '8px' }}>🛠 Tools</h1>
-      <p style={{ color: '#606080', marginBottom: '24px' }}>All PhantomAI tools in one place.</p>
+    <div
+      style={{
+        minHeight: '100vh',
+        padding: '32px',
+        background: '#050509',
+        color: '#ffffff',
+        boxSizing: 'border-box',
+      }}
+    >
 
-      {/* Tools Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '32px' }}>
-        {toolsList.map((tool) => (
-          <button
-            key={tool.id}
-            onClick={() => setActiveTool(tool.id)}
+      <div
+        style={{
+          maxWidth: '1250px',
+          margin: '0 auto',
+        }}
+      >
+
+        {/* HEADER */}
+
+        <div
+          style={{
+            marginBottom: '30px',
+          }}
+        >
+
+          <h1
             style={{
-              padding: '16px',
-              background: activeTool === tool.id ? 'rgba(0,212,255,0.15)' : 'rgba(18,18,26,0.6)',
-              border: activeTool === tool.id ? '1px solid rgba(0,212,255,0.3)' : '1px solid rgba(26,26,46,0.3)',
-              borderRadius: '10px',
-              color: activeTool === tool.id ? '#00d4ff' : '#a0a0b0',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'all 0.2s',
+              margin: 0,
+              fontSize: '32px',
+              fontWeight: '700',
             }}
           >
-            <div style={{ fontSize: '20px' }}>{tool.name}</div>
-            <div style={{ fontSize: '12px', color: '#606080', marginTop: '4px' }}>{tool.description}</div>
-          </button>
-        ))}
-      </div>
+            🛠 PhantomAI Tools
+          </h1>
 
-      {/* Tool Content */}
-      <div style={{ padding: '20px', background: 'rgba(18,18,26,0.4)', borderRadius: '12px', border: '1px solid rgba(26,26,46,0.3)' }}>
-        {activeTool === 'notes' && (
-          <div>
-            <h3 style={{ color: '#fff', marginBottom: '12px' }}>📝 Notes</h3>
-            {loading.notes ? (
-              <p style={{ color: '#606080' }}>Loading notes...</p>
-            ) : notes.length === 0 ? (
-              <p style={{ color: '#606080' }}>No notes yet.</p>
-            ) : (
-              notes.map((note) => (
-                <div key={note.id} style={{ padding: '12px', background: 'rgba(10,10,15,0.4)', borderRadius: '6px', marginBottom: '8px' }}>
-                  <div style={{ color: '#fff', fontWeight: '600' }}>{note.title}</div>
-                  <div style={{ color: '#a0a0b0', fontSize: '13px' }}>{note.content}</div>
-                </div>
-              ))
-            )}
+          <p
+            style={{
+              marginTop: '8px',
+              marginBottom: 0,
+              color: '#77778a',
+              fontSize: '14px',
+            }}
+          >
+            Use PhantomAI's capabilities directly.
+          </p>
+
+        </div>
+
+
+        {/* MAIN LAYOUT */}
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns:
+              '280px minmax(0, 1fr)',
+            gap: '20px',
+            alignItems: 'start',
+          }}
+        >
+
+          {/* SIDEBAR */}
+
+          <div
+            style={{
+              background:
+                'rgba(18,18,26,0.65)',
+              border:
+                '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '14px',
+              padding: '12px',
+            }}
+          >
+
+            <div
+              style={{
+                color: '#666679',
+                fontSize: '11px',
+                textTransform: 'uppercase',
+                letterSpacing: '1px',
+                padding: '8px 10px',
+                marginBottom: '4px',
+              }}
+            >
+              Tools
+            </div>
+
+
+            {TOOL_LIST.map((tool) => {
+
+              const selected =
+                activeTool === tool.id;
+
+
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() =>
+                    setActiveTool(
+                      tool.id
+                    )
+                  }
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    padding: '12px',
+                    marginBottom: '4px',
+                    borderRadius: '9px',
+                    border: selected
+                      ? '1px solid rgba(0,212,255,0.25)'
+                      : '1px solid transparent',
+                    background: selected
+                      ? 'rgba(0,212,255,0.10)'
+                      : 'transparent',
+                    color: selected
+                      ? '#00d4ff'
+                      : '#b0b0c0',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+
+                  <span
+                    style={{
+                      fontSize: '20px',
+                      width: '28px',
+                      textAlign: 'center',
+                    }}
+                  >
+                    {tool.icon}
+                  </span>
+
+
+                  <span
+                    style={{
+                      minWidth: 0,
+                    }}
+                  >
+
+                    <span
+                      style={{
+                        display: 'block',
+                        fontSize: '13px',
+                        fontWeight: '600',
+                      }}
+                    >
+                      {tool.name}
+                    </span>
+
+
+                    <span
+                      style={{
+                        display: 'block',
+                        marginTop: '3px',
+                        fontSize: '11px',
+                        color: '#626274',
+                      }}
+                    >
+                      {tool.category}
+                    </span>
+
+                  </span>
+
+                </button>
+              );
+            })}
+
           </div>
-        )}
 
-        {activeTool === 'tasks' && (
-          <div>
-            <h3 style={{ color: '#fff', marginBottom: '12px' }}>✅ Tasks</h3>
-            {loading.tasks ? (
-              <p style={{ color: '#606080' }}>Loading tasks...</p>
-            ) : tasks.length === 0 ? (
-              <p style={{ color: '#606080' }}>No tasks yet.</p>
-            ) : (
-              tasks.map((task) => (
-                <div key={task.id} style={{ padding: '12px', background: 'rgba(10,10,15,0.4)', borderRadius: '6px', marginBottom: '8px' }}>
-                  <div style={{ color: '#fff', fontWeight: '600' }}>{task.title}</div>
-                  <div style={{ color: '#a0a0b0', fontSize: '13px' }}>
-                    Priority: {task.priority} | Status: {task.status}
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        )}
 
-        {activeTool === 'weather' && (
-          <div>
-            <h3 style={{ color: '#fff', marginBottom: '12px' }}>🌤️ Weather</h3>
-            <div style={{ display: 'flex', gap: '12px', marginBottom: '16px' }}>
-              <input
-                type="text"
-                value={city}
-                onChange={(e) => setCity(e.target.value)}
-                placeholder="Enter city..."
+          {/* WORKSPACE */}
+
+          <div
+            style={{
+              minWidth: 0,
+              background:
+                'rgba(10,10,16,0.45)',
+              border:
+                '1px solid rgba(255,255,255,0.06)',
+              borderRadius: '14px',
+              padding: '24px',
+              minHeight: '600px',
+            }}
+          >
+
+            {/* WORKSPACE TITLE */}
+
+            <div
+              style={{
+                borderBottom:
+                  '1px solid rgba(255,255,255,0.06)',
+                paddingBottom: '18px',
+                marginBottom: '24px',
+              }}
+            >
+
+              <div
                 style={{
-                  flex: 1,
-                  padding: '10px 14px',
-                  background: 'rgba(10,10,15,0.4)',
-                  border: '1px solid rgba(26,26,46,0.5)',
-                  borderRadius: '8px',
-                  color: '#e0e0e0',
-                  fontSize: '14px',
-                  outline: 'none',
-                }}
-              />
-              <button
-                onClick={getWeather}
-                style={{
-                  padding: '10px 24px',
-                  background: '#00d4ff',
-                  color: '#0a0a0f',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontWeight: '600',
-                  cursor: 'pointer',
+                  color: '#555568',
+                  fontSize: '11px',
+                  textTransform: 'uppercase',
+                  letterSpacing: '1px',
+                  marginBottom: '6px',
                 }}
               >
-                Get Weather
-              </button>
-            </div>
-            {weather && weather.city && (
-              <div>
-                <div style={{ color: '#fff', fontSize: '24px' }}>{weather.city}, {weather.country}</div>
-                <div style={{ color: '#00d4ff', fontSize: '32px' }}>{weather.temperature}°C</div>
-                <div style={{ color: '#a0a0b0' }}>{weather.condition}</div>
-                <div style={{ color: '#606080', fontSize: '13px' }}>Humidity: {weather.humidity}% | Wind: {weather.wind_speed} m/s</div>
+                {activeToolData?.category}
               </div>
-            )}
-          </div>
-        )}
 
-        {activeTool !== 'notes' && activeTool !== 'tasks' && activeTool !== 'weather' && (
-          <div style={{ textAlign: 'center', color: '#606080', padding: '40px 0' }}>
-            <p>Tool coming soon</p>
+
+              <h2
+                style={{
+                  margin: 0,
+                  fontSize: '20px',
+                  color: '#ffffff',
+                }}
+              >
+                {activeToolData?.icon}{' '}
+                {activeToolData?.name}
+              </h2>
+
+
+              <p
+                style={{
+                  margin:
+                    '6px 0 0',
+                  color: '#686879',
+                  fontSize: '13px',
+                }}
+              >
+                {activeToolData?.description}
+              </p>
+
+            </div>
+
+
+            {renderToolWorkspace()}
+
           </div>
-        )}
+
+        </div>
+
       </div>
+
     </div>
   );
 };
+
+
+const ComingSoon = ({
+  icon,
+  name,
+}) => {
+
+  return (
+    <div
+      style={{
+        minHeight: '400px',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        textAlign: 'center',
+      }}
+    >
+
+      <div
+        style={{
+          fontSize: '52px',
+          marginBottom: '16px',
+        }}
+      >
+        {icon}
+      </div>
+
+
+      <h3
+        style={{
+          margin: 0,
+          color: '#ffffff',
+          fontSize: '20px',
+        }}
+      >
+        {name}
+      </h3>
+
+
+      <p
+        style={{
+          color: '#666679',
+          fontSize: '13px',
+          marginTop: '8px',
+        }}
+      >
+        This workspace will be connected next.
+      </p>
+
+    </div>
+  );
+};
+
 
 export default Tools;
