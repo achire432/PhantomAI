@@ -1,0 +1,10 @@
+FastAPI is a modern Python web framework.
+
+It is commonly used for building APIs.
+
+PhantomAI uses FastAPI as its backend framework.
+
+PostgreSQL is used as the database.
+
+The AI assistant can process user messages and
+maintain conversation history.

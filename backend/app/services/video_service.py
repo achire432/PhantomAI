@@ -1,258 +1,473 @@
 import os
+import time
 import tempfile
 import base64
 from io import BytesIO
 
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
-from moviepy.editor import ImageClip, concatenate_videoclips
+from dotenv import load_dotenv
+from PIL import Image
+
+from google import genai
+from google.genai import types
 
 
-def _wrap_text(text: str, max_chars: int = 42):
+# ============================================================
+# ENVIRONMENT
+# ============================================================
+
+load_dotenv()
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
+VEO_MODEL = "veo-3.1-generate-preview"
+
+
+# ============================================================
+# CLIENT
+# ============================================================
+
+def _get_client():
     """
-    Wrap text into readable lines.
+    Create a Google Gemini Developer API client.
     """
-    words = text.split()
 
-    lines = []
-    current_line = ""
+    if not GEMINI_API_KEY:
+        raise RuntimeError(
+            "GEMINI_API_KEY is not configured. "
+            "Add GEMINI_API_KEY to the .env file."
+        )
 
-    for word in words:
-        if len(current_line) + len(word) + 1 <= max_chars:
-            current_line += word + " "
-        else:
-            if current_line:
-                lines.append(current_line.strip())
+    return genai.Client(
+        api_key=GEMINI_API_KEY
+    )
 
-            current_line = word + " "
 
-    if current_line:
-        lines.append(current_line.strip())
-
-    return lines
-
+# ============================================================
+# TEXT -> REAL AI VIDEO
+# ============================================================
 
 def create_text_video(
     text: str,
-    duration: int = 5,
-    output_path: str | None = None,
+    duration: int = 8,
+    aspect_ratio: str = "16:9",
+    resolution: str = "720p",
 ) -> dict:
     """
-    Create a simple MP4 video containing the supplied text.
+    Generate a real AI video using Google Veo 3.1.
+
+    Veo 3.1 generates video with native audio.
+
+    Supported durations:
+        4
+        6
+        8 seconds
+
+    Supported aspect ratios:
+        16:9
+        9:16
+
+    Supported resolutions:
+        720p
+        1080p
+
+    Returns:
+        {
+            "success": True,
+            "path": "...",
+            "filename": "...",
+            "duration": 8,
+            "provider": "google-veo-3.1"
+        }
     """
 
-    try:
-        text = text.strip()
+    text = text.strip()
 
-        if not text:
+    if not text:
+        return {
+            "success": False,
+            "error": "Video prompt cannot be empty.",
+        }
+
+    # --------------------------------------------------------
+    # VALIDATE DURATION
+    # --------------------------------------------------------
+
+    allowed_durations = [4, 6, 8]
+
+    if duration not in allowed_durations:
+        return {
+            "success": False,
+            "error": (
+                "Invalid duration. "
+                "Veo 3.1 supports 4, 6, or 8 seconds."
+            ),
+        }
+
+    # --------------------------------------------------------
+    # VALIDATE ASPECT RATIO
+    # --------------------------------------------------------
+
+    if aspect_ratio not in ["16:9", "9:16"]:
+        return {
+            "success": False,
+            "error": (
+                "Aspect ratio must be "
+                "16:9 or 9:16."
+            ),
+        }
+
+    # --------------------------------------------------------
+    # VALIDATE RESOLUTION
+    # --------------------------------------------------------
+
+    if resolution not in ["720p", "1080p"]:
+        return {
+            "success": False,
+            "error": (
+                "Resolution must be "
+                "720p or 1080p."
+            ),
+        }
+
+    # --------------------------------------------------------
+    # 1080P CONSTRAINT
+    # --------------------------------------------------------
+
+    if resolution == "1080p" and duration != 8:
+        return {
+            "success": False,
+            "error": (
+                "1080p generation requires "
+                "an 8-second video."
+            ),
+        }
+
+    try:
+
+        # ----------------------------------------------------
+        # CREATE CLIENT
+        # ----------------------------------------------------
+
+        client = _get_client()
+
+        print()
+        print("=" * 60)
+        print("PHANTOM AI — REAL VEO VIDEO GENERATION")
+        print("=" * 60)
+        print(f"Model:        {VEO_MODEL}")
+        print(f"Duration:     {duration}s")
+        print(f"Aspect Ratio: {aspect_ratio}")
+        print(f"Resolution:   {resolution}")
+        print("=" * 60)
+        print("Sending request to Google Veo...")
+        print()
+
+        # ----------------------------------------------------
+        # CONFIG
+        #
+        # IMPORTANT:
+        # Do NOT use generate_audio=True here.
+        #
+        # Veo 3.1 already generates native audio.
+        # ----------------------------------------------------
+
+        config = types.GenerateVideosConfig(
+            number_of_videos=1,
+            duration_seconds=duration,
+            aspect_ratio=aspect_ratio,
+            resolution=resolution,
+            )
+
+        # ----------------------------------------------------
+        # START GENERATION
+        # ----------------------------------------------------
+
+        operation = client.models.generate_videos(
+            model=VEO_MODEL,
+            prompt=text,
+            config=config,
+        )
+
+        print("Veo generation started.")
+
+        if getattr(operation, "name", None):
+            print(
+                f"Operation: {operation.name}"
+            )
+
+        # ----------------------------------------------------
+        # WAIT FOR GENERATION
+        # ----------------------------------------------------
+
+        started_at = time.time()
+
+        max_wait_seconds = 600
+
+        while not operation.done:
+
+            elapsed = int(
+                time.time() - started_at
+            )
+
+            print(
+                f"Waiting for Veo... "
+                f"{elapsed}s elapsed"
+            )
+
+            if elapsed >= max_wait_seconds:
+
+                return {
+                    "success": False,
+                    "error": (
+                        "Video generation timed out "
+                        "after 10 minutes."
+                    ),
+                }
+
+            time.sleep(10)
+
+            operation = client.operations.get(
+                operation
+            )
+
+        print()
+        print("Veo operation completed.")
+
+        # ----------------------------------------------------
+        # CHECK RESPONSE
+        # ----------------------------------------------------
+
+        if not operation.response:
+
             return {
                 "success": False,
-                "error": "Video text cannot be empty.",
+                "error": (
+                    "Veo completed but returned "
+                    "no response."
+                ),
             }
 
-        duration = max(1, min(duration, 60))
-
-        temp_dir = tempfile.mkdtemp()
-
-        if output_path is None:
-            output_path = os.path.join(
-                temp_dir,
-                "phantom_ai_text_video.mp4",
-            )
-
-        # ----------------------------------------------------
-        # CREATE VIDEO FRAME
-        # ----------------------------------------------------
-
-        frame = Image.new(
-            "RGB",
-            (1920, 1080),
-            color=(10, 10, 30),
+        generated_videos = (
+            operation.response.generated_videos
         )
 
-        draw = ImageDraw.Draw(frame)
+        if not generated_videos:
+
+            return {
+                "success": False,
+                "error": (
+                    "Veo did not return "
+                    "a generated video."
+                ),
+            }
+
+        generated_video = generated_videos[0]
+
+        video_file = generated_video.video
+
+        if not video_file:
+
+            return {
+                "success": False,
+                "error": (
+                    "Veo returned an empty "
+                    "video file."
+                ),
+            }
 
         # ----------------------------------------------------
-        # LOAD FONTS
+        # LOCAL OUTPUT DIRECTORY
         # ----------------------------------------------------
 
-        try:
-            font = ImageFont.truetype(
-                "/System/Library/Fonts/Helvetica.ttc",
-                72,
-            )
+        output_dir = os.path.join(
+            tempfile.gettempdir(),
+            "phantom_ai_videos",
+        )
 
-            body_font = ImageFont.truetype(
-                "/System/Library/Fonts/Helvetica.ttc",
-                52,
-            )
+        os.makedirs(
+            output_dir,
+            exist_ok=True,
+        )
 
-            footer_font = ImageFont.truetype(
-                "/System/Library/Fonts/Helvetica.ttc",
-                32,
-            )
+        timestamp = int(time.time())
 
-        except Exception:
-            font = ImageFont.load_default()
-            body_font = font
-            footer_font = font
-
-        # ----------------------------------------------------
-        # BORDER
-        # ----------------------------------------------------
-
-        draw.rectangle(
-            [50, 50, 1870, 1030],
-            outline=(0, 200, 255),
-            width=4,
+        output_path = os.path.join(
+            output_dir,
+            f"phantom_ai_veo_{timestamp}.mp4",
         )
 
         # ----------------------------------------------------
-        # HEADER
+        # DOWNLOAD GENERATED VIDEO
         # ----------------------------------------------------
 
-        draw.text(
-            (100, 100),
-            "PHANTOM AI",
-            fill=(0, 200, 255),
-            font=font,
+        print(
+            "Downloading generated video..."
+        )
+
+        client.files.download(
+            file=video_file
+        )
+
+        video_file.save(
+            output_path
         )
 
         # ----------------------------------------------------
-        # BODY TEXT
+        # VERIFY FILE
         # ----------------------------------------------------
 
-        lines = _wrap_text(text)
+        if not os.path.exists(output_path):
 
-        y = 330
+            return {
+                "success": False,
+                "error": (
+                    "Veo generated the video, "
+                    "but the MP4 could not "
+                    "be saved."
+                ),
+            }
 
-        for line in lines:
-            draw.text(
-                (100, y),
-                line,
-                fill="white",
-                font=body_font,
-            )
-
-            y += 75
-
-            if y > 850:
-                break
-
-        # ----------------------------------------------------
-        # FOOTER
-        # ----------------------------------------------------
-
-        draw.text(
-            (100, 950),
-            "Achire Intelligent Systems",
-            fill=(100, 100, 150),
-            font=footer_font,
+        file_size = os.path.getsize(
+            output_path
         )
 
-        # ----------------------------------------------------
-        # CONVERT FRAME
-        # ----------------------------------------------------
+        if file_size <= 0:
 
-        frame_array = np.array(frame)
+            return {
+                "success": False,
+                "error": (
+                    "Generated video file "
+                    "is empty."
+                ),
+            }
 
-        clip = ImageClip(
-            frame_array,
-            duration=duration,
+        print()
+        print("=" * 60)
+        print("VIDEO GENERATION SUCCESS")
+        print("=" * 60)
+        print(f"File: {output_path}")
+        print(
+            f"Size: "
+            f"{file_size / 1024 / 1024:.2f} MB"
         )
-
-        # ----------------------------------------------------
-        # FADE EFFECT
-        # ----------------------------------------------------
-
-        clip = clip.fadein(0.5)
-        clip = clip.fadeout(0.5)
-
-        # ----------------------------------------------------
-        # WRITE VIDEO
-        # ----------------------------------------------------
-
-        clip.write_videofile(
-            output_path,
-            fps=24,
-            codec="libx264",
-            audio=False,
-            logger=None,
-        )
-
-        clip.close()
+        print("=" * 60)
+        print()
 
         return {
             "success": True,
             "path": output_path,
+            "filename": (
+                "phantom_ai_veo_video.mp4"
+            ),
             "duration": duration,
-            "text": text,
-            "type": "text_video",
-            "filename": "phantom_ai_text_video.mp4",
+            "aspect_ratio": aspect_ratio,
+            "resolution": resolution,
+            "provider": "google-veo-3.1",
+            "prompt": text,
         }
 
     except Exception as error:
+
+        error_message = str(error)
+
+        print()
+        print("=" * 60)
+        print("VEO VIDEO GENERATION FAILED")
+        print("=" * 60)
+        print(error_message)
+        print("=" * 60)
+
         return {
             "success": False,
-            "error": str(error),
+            "error": (
+                "Veo video generation failed: "
+                f"{error_message}"
+            ),
         }
 
 
-def _decode_base64_image(image_data: str) -> Image.Image:
+# ============================================================
+# BASE64 IMAGE DECODER
+# ============================================================
+
+def _decode_base64_image(
+    image_data: str
+) -> Image.Image:
     """
-    Convert base64/data URI into a PIL Image.
+    Convert base64 image/data URI to PIL Image.
     """
 
-    if image_data.startswith("data:image"):
-        image_data = image_data.split(",", 1)[1]
+    if image_data.startswith(
+        "data:image"
+    ):
+        image_data = image_data.split(
+            ",",
+            1
+        )[1]
 
-    raw = base64.b64decode(image_data)
+    raw = base64.b64decode(
+        image_data
+    )
 
-    image = Image.open(
+    return Image.open(
         BytesIO(raw)
     ).convert("RGB")
 
-    return image
 
+# ============================================================
+# IMAGE -> SLIDESHOW VIDEO
+# ============================================================
 
 def create_slideshow_video(
     images: list,
     duration_per_image: int = 3,
 ) -> dict:
     """
-    Create an MP4 slideshow from base64 images.
+    Create a local slideshow video from images.
+
+    This is separate from Veo AI video generation.
     """
+
+    if not images:
+
+        return {
+            "success": False,
+            "error": (
+                "At least one image is required."
+            ),
+        }
+
+    duration_per_image = max(
+        1,
+        min(duration_per_image, 30),
+    )
 
     temporary_files = []
     clips = []
 
     try:
 
-        if not images:
-            return {
-                "success": False,
-                "error": "At least one image is required.",
-            }
-
-        duration_per_image = max(
-            1,
-            min(duration_per_image, 30),
+        from moviepy.editor import (
+            ImageClip,
+            concatenate_videoclips,
         )
 
         # ----------------------------------------------------
-        # CREATE CLIPS
+        # CREATE IMAGE CLIPS
         # ----------------------------------------------------
 
         for image_data in images:
 
-            if not isinstance(image_data, str):
+            if not isinstance(
+                image_data,
+                str
+            ):
                 continue
 
             image = _decode_base64_image(
                 image_data
             )
 
-            # Standardize image size
             image = image.resize(
                 (1920, 1080)
             )
@@ -284,9 +499,13 @@ def create_slideshow_video(
             clips.append(clip)
 
         if not clips:
+
             return {
                 "success": False,
-                "error": "No valid images were supplied.",
+                "error": (
+                    "No valid images "
+                    "were supplied."
+                ),
             }
 
         # ----------------------------------------------------
@@ -318,10 +537,15 @@ def create_slideshow_video(
         return {
             "success": True,
             "path": output_path,
-            "duration": len(clips) * duration_per_image,
+            "duration": (
+                len(clips)
+                * duration_per_image
+            ),
             "type": "slideshow_video",
             "image_count": len(clips),
-            "filename": "phantom_ai_slideshow.mp4",
+            "filename": (
+                "phantom_ai_slideshow.mp4"
+            ),
         }
 
     except Exception as error:
@@ -336,7 +560,9 @@ def create_slideshow_video(
         for path in temporary_files:
 
             try:
+
                 if os.path.exists(path):
                     os.remove(path)
+
             except Exception:
                 pass

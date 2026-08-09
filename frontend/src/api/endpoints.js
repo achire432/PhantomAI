@@ -185,28 +185,57 @@ export const tools = {
   },
 
   // ----------------------------------------------------------
+// EMAIL
+// ----------------------------------------------------------
+
+email: {
+  getRecent: (limit = 10) =>
+    api.get('/email/recent', {
+      params: {
+        limit,
+      },
+    }),
+
+  summarize: (id) =>
+    api.get(`/email/${id}/summarize`),
+
+  createDraft: (data) =>
+    api.post('/email/draft', data),
+
+  send: (data) =>
+    api.post('/email/send', data),
+
+  getDrafts: () =>
+    api.get('/email/drafts'),
+},
+
+  // ----------------------------------------------------------
   // REMINDERS
   // ----------------------------------------------------------
 
   reminders: {
-    getAll: () =>
-      api.get('/reminders/'),
+  getAll: (upcoming = true) =>
+    api.get('/reminders/', {
+      params: {
+        upcoming,
+      },
+    }),
 
-    get: (id) =>
-      api.get(`/reminders/${id}`),
+  get: (id) =>
+    api.get(`/reminders/${id}`),
 
-    create: (data) =>
-      api.post('/reminders/', data),
+  create: (data) =>
+    api.post('/reminders/', data),
 
-    update: (id, data) =>
-      api.put(`/reminders/${id}`, data),
+  update: (id, data) =>
+    api.put(`/reminders/${id}`, data),
 
-    delete: (id) =>
-      api.delete(`/reminders/${id}`),
+  delete: (id) =>
+    api.delete(`/reminders/${id}`),
 
-    complete: (id) =>
-      api.post(`/reminders/${id}/complete`),
-  },
+  complete: (id) =>
+    api.post(`/reminders/${id}/complete`),
+},
 
   // ----------------------------------------------------------
   // SYSTEM
@@ -331,20 +360,24 @@ export const images = {
 // ============================================================
 
 export const video = {
-
   // ----------------------------------------------------------
-  // TEXT → VIDEO
+  // REAL AI TEXT → VIDEO
+  // Google Veo 3.1
   // ----------------------------------------------------------
 
   text: (
     text,
-    duration = 5
+    duration = 8,
+    aspectRatio = '16:9',
+    resolution = '720p'
   ) =>
     api.post(
       '/video/text',
       {
         text,
         duration,
+        aspect_ratio: aspectRatio,
+        resolution,
       },
       {
         responseType: 'blob',
@@ -352,7 +385,7 @@ export const video = {
     ),
 
   // ----------------------------------------------------------
-  // IMAGES → SLIDESHOW VIDEO
+  // IMAGES → SLIDESHOW
   // ----------------------------------------------------------
 
   slideshow: (
@@ -369,7 +402,6 @@ export const video = {
         responseType: 'blob',
       }
     ),
-
 };
 
 // ============================================================

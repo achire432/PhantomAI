@@ -1,6 +1,8 @@
-from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional
+
+from pydantic import BaseModel, model_validator
+
 
 class CalendarEventCreate(BaseModel):
     title: str
@@ -10,6 +12,13 @@ class CalendarEventCreate(BaseModel):
     end_time: datetime
     all_day: bool = False
 
+    @model_validator(mode="after")
+    def validate_times(self):
+        if self.end_time <= self.start_time:
+            raise ValueError("End time must be after start time.")
+        return self
+
+
 class CalendarEventUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
@@ -17,6 +26,7 @@ class CalendarEventUpdate(BaseModel):
     start_time: Optional[datetime] = None
     end_time: Optional[datetime] = None
     all_day: Optional[bool] = None
+
 
 class CalendarEventResponse(BaseModel):
     id: int

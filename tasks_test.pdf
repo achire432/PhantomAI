@@ -1,0 +1,81 @@
+HTTP/1.1 200 OK
+date: Sun, 09 Aug 2026 13:43:36 GMT
+server: uvicorn
+content-disposition: attachment; filename="tasks.pdf"
+content-length: 1943
+content-type: application/pdf
+
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 8 0 R /MediaBox [ 0 0 612 792 ] /Parent 7 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/PageMode /UseNone /Pages 7 0 R /Type /Catalog
+>>
+endobj
+6 0 obj
+<<
+/Author (PhantomAI) /CreationDate (D:20260809164337+03'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20260809164337+03'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (\(unspecified\)) /Title (PhantomAI Report) /Trapped /False
+>>
+endobj
+7 0 obj
+<<
+/Count 1 /Kids [ 4 0 R ] /Type /Pages
+>>
+endobj
+8 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 542
+>>
+stream
+Gatm8gJ5UN&:N^lcD-h)B6LaWbF?LE1ho;Q"'#\[[_u?Ypj74o(SIRY(qPFSbjCpgfe%j#@e]ng!gaMED\t#:9u4tNL`ULUotGa;-*W-Ne!8e]M*oO$bC!n(\B=4i84&R#j>P,C4>)d'?Ip%-a'#Z@0CDRI/J+K+K\K@%GZk8nkU<#Ki%<Qc@9*2>_LT!B_<="a\-Ofc^6)$n*68mCK!K+:DZk`o<k+Sn*nQ5-muQoXTGEb%<!@D@q#jhe0gaJniK0L7$mA1*4p??A_0W'@TA\FS\$ZH?T,D9+J-p\r7>O(BoZZC#X0NX\LXhAkJ8%r43u/8/aG,5P&))'-rLR@,JB@4R?JdW[p:mp9666g*V21%0pT14L,D(pGq(eQYlV9E.a/nZCQ/KfTY8/+gd!DMcf16/HUr$su:J2Dq;IR.AAJ;8dBIeq1Y,,Sk7=3no4,be]mG*`HQ>phlMk1`XI%P?%IDo!1%8qE"c/oZm:.LS,Fu6RG.?/[ok-C44ZRL#`QEaIKNfqS!.lSoV_PP7nlkXo^D_s-,~>endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000061 00000 n 
+0000000102 00000 n 
+0000000209 00000 n 
+0000000321 00000 n 
+0000000514 00000 n 
+0000000582 00000 n 
+0000000861 00000 n 
+0000000920 00000 n 
+trailer
+<<
+/ID 
+[<83f06aa956f6702f9f6d099daaf60e70><83f06aa956f6702f9f6d099daaf60e70>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 6 0 R
+/Root 5 0 R
+/Size 9
+>>
+startxref
+1552
+%%EOF

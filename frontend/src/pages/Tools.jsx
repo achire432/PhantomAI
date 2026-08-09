@@ -1,8 +1,19 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import ProductivityTools from '../components/tools/ProductivityTools';
 
 import ImageGenerationTool from '../components/tools/ImageGenerationTool';
 import VideoGenerationTool from '../components/tools/VideoGenerationTool';
+import PDFTools from '../components/tools/PDFTools';
+import NotesTool from '../components/tools/NotesTool';
+import RemindersTool from '../components/tools/RemindersTool';
+import TasksTool from '../components/tools/TasksTool';
+import CalendarTool from '../components/tools/CalendarTool';
+import EmailTool from '../components/tools/EmailTool';
 
+// ============================================================
+// TOOL LIST
+// ============================================================
 
 const TOOL_LIST = [
   {
@@ -17,7 +28,7 @@ const TOOL_LIST = [
     id: 'video',
     name: 'Video Generation',
     icon: '🎬',
-    description: 'Create videos from text and images.',
+    description: 'Create real AI-generated videos.',
     category: 'AI Generation',
   },
 
@@ -25,7 +36,7 @@ const TOOL_LIST = [
     id: 'pdf',
     name: 'PDF Tools',
     icon: '📄',
-    description: 'Read, analyze and work with PDF files.',
+    description: 'Upload, analyze and export PDF documents.',
     category: 'Documents',
   },
 
@@ -84,46 +95,158 @@ const TOOL_LIST = [
     description: 'Search the web for information.',
     category: 'Research',
   },
+
+  {
+  id: 'notes',
+  name: 'Notes',
+  icon: '📝',
+  description: 'Create, search, edit and manage your notes.',
+  category: 'Productivity',
+},
+
+{
+  id: 'tasks',
+  name: 'Tasks',
+  icon: '✅',
+  description: 'Create, organize and track your tasks.',
+  category: 'Productivity',
+},
+
+{
+  id: 'reminders',
+  name: 'Reminders',
+  icon: '⏰',
+  description: 'Set and manage reminders for important events.',
+  category: 'Productivity',
+},
+
+{
+  id: 'calendar',
+  name: 'Calendar',
+  icon: '📅',
+  description: 'Create and manage your events and schedule.',
+  category: 'Productivity',
+},
+
+{
+  id: 'email',
+  name: 'Email',
+  icon: '✉️',
+  description: 'Read, summarize, draft and send emails.',
+  category: 'Productivity',
+},
+
 ];
 
+// ============================================================
+// COMING SOON COMPONENT
+// ============================================================
+
+const ComingSoon = ({ icon, name }) => {
+  return (
+    <div
+      style={{
+        width: '100%',
+        maxWidth: '760px',
+        margin: '0 auto',
+        padding: '50px 30px',
+        borderRadius: '16px',
+        border: '1px solid rgba(255,255,255,0.06)',
+        background: 'rgba(18,18,26,0.65)',
+        textAlign: 'center',
+        boxSizing: 'border-box',
+      }}
+    >
+      <div
+        style={{
+          fontSize: '48px',
+          marginBottom: '15px',
+        }}
+      >
+        {icon}
+      </div>
+
+      <h2
+        style={{
+          margin: '0 0 10px',
+          color: '#ffffff',
+          fontSize: '22px',
+        }}
+      >
+        {name}
+      </h2>
+
+      <p
+        style={{
+          margin: 0,
+          color: '#666679',
+          fontSize: '13px',
+        }}
+      >
+        This PhantomAI tool is coming soon.
+      </p>
+    </div>
+  );
+};
+
+// ============================================================
+// TOOLS PAGE
+// ============================================================
 
 const Tools = () => {
+  const navigate = useNavigate();
 
-  const [activeTool, setActiveTool] =
-    useState('image');
+  const [activeTool, setActiveTool] = useState('image');
 
+  const activeToolData = TOOL_LIST.find(
+    (tool) => tool.id === activeTool
+  );
 
-  const activeToolData =
-    TOOL_LIST.find(
-      (tool) =>
-        tool.id === activeTool
-    );
-
+  // ==========================================================
+  // TOOL WORKSPACE
+  // ==========================================================
 
   const renderToolWorkspace = () => {
-
     switch (activeTool) {
+      // ------------------------------------------------------
+      // IMAGE
+      // ------------------------------------------------------
 
       case 'image':
-        return (
-          <ImageGenerationTool />
-        );
+        return <ImageGenerationTool />;
 
+      // ------------------------------------------------------
+      // VIDEO
+      // ------------------------------------------------------
 
       case 'video':
-        return (
-          <VideoGenerationTool />
-        );
+        return <VideoGenerationTool />;
 
+      // ------------------------------------------------------
+      // PDF
+      // ------------------------------------------------------
 
       case 'pdf':
-        return (
-          <ComingSoon
-            icon="📄"
-            name="PDF Tools"
-          />
-        );
+        return <PDFTools />;
 
+      case 'notes':
+        return <NotesTool />;
+
+      case 'reminders':
+        return <RemindersTool />;
+
+      case 'tasks':
+        return <TasksTool />;
+
+      case 'calendar':
+        return <CalendarTool />;
+
+      case 'email':
+        return <EmailTool />;
+
+      // ------------------------------------------------------
+      // OTHER TOOLS
+      // ------------------------------------------------------
 
       case 'voice':
         return (
@@ -133,7 +256,6 @@ const Tools = () => {
           />
         );
 
-
       case 'database':
         return (
           <ComingSoon
@@ -141,7 +263,6 @@ const Tools = () => {
             name="Database"
           />
         );
-
 
       case 'code':
         return (
@@ -151,7 +272,6 @@ const Tools = () => {
           />
         );
 
-
       case 'calculator':
         return (
           <ComingSoon
@@ -159,7 +279,6 @@ const Tools = () => {
             name="Calculator"
           />
         );
-
 
       case 'weather':
         return (
@@ -169,7 +288,6 @@ const Tools = () => {
           />
         );
 
-
       case 'files':
         return (
           <ComingSoon
@@ -177,7 +295,6 @@ const Tools = () => {
             name="Files"
           />
         );
-
 
       case 'web':
         return (
@@ -187,12 +304,14 @@ const Tools = () => {
           />
         );
 
-
       default:
         return null;
     }
   };
 
+  // ==========================================================
+  // RENDER
+  // ==========================================================
 
   return (
     <div
@@ -204,22 +323,21 @@ const Tools = () => {
         boxSizing: 'border-box',
       }}
     >
-
       <div
         style={{
           maxWidth: '1250px',
           margin: '0 auto',
         }}
       >
-
-        {/* HEADER */}
+        {/* ==================================================
+            HEADER
+        ================================================== */}
 
         <div
           style={{
             marginBottom: '30px',
           }}
         >
-
           <h1
             style={{
               margin: 0,
@@ -238,264 +356,143 @@ const Tools = () => {
               fontSize: '14px',
             }}
           >
-            Use PhantomAI's capabilities directly.
+            Powerful tools built directly into PhantomAI.
           </p>
-
         </div>
 
-
-        {/* MAIN LAYOUT */}
+        {/* ==================================================
+            TOOL SELECTOR
+        ================================================== */}
 
         <div
           style={{
             display: 'grid',
             gridTemplateColumns:
-              '280px minmax(0, 1fr)',
-            gap: '20px',
-            alignItems: 'start',
+              'repeat(auto-fit, minmax(190px, 1fr))',
+            gap: '12px',
+            marginBottom: '35px',
           }}
         >
+          {TOOL_LIST.map((tool) => {
+            const active = activeTool === tool.id;
 
-          {/* SIDEBAR */}
+            return (
+              <button
+                key={tool.id}
+                type="button"
+                onClick={() => setActiveTool(tool.id)}
+                style={{
+                  textAlign: 'left',
+                  padding: '16px',
+                  borderRadius: '13px',
 
-          <div
-            style={{
-              background:
-                'rgba(18,18,26,0.65)',
-              border:
-                '1px solid rgba(255,255,255,0.06)',
-              borderRadius: '14px',
-              padding: '12px',
-            }}
-          >
+                  border: active
+                    ? '1px solid rgba(0,212,255,0.45)'
+                    : '1px solid rgba(255,255,255,0.06)',
 
-            <div
-              style={{
-                color: '#666679',
-                fontSize: '11px',
-                textTransform: 'uppercase',
-                letterSpacing: '1px',
-                padding: '8px 10px',
-                marginBottom: '4px',
-              }}
-            >
-              Tools
-            </div>
+                  background: active
+                    ? 'rgba(0,212,255,0.08)'
+                    : 'rgba(18,18,26,0.65)',
 
+                  color: '#ffffff',
+                  cursor: 'pointer',
 
-            {TOOL_LIST.map((tool) => {
-
-              const selected =
-                activeTool === tool.id;
-
-
-              return (
-                <button
-                  key={tool.id}
-                  onClick={() =>
-                    setActiveTool(
-                      tool.id
-                    )
-                  }
+                  transition: 'all 0.2s ease',
+                }}
+              >
+                <div
                   style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    padding: '12px',
-                    marginBottom: '4px',
-                    borderRadius: '9px',
-                    border: selected
-                      ? '1px solid rgba(0,212,255,0.25)'
-                      : '1px solid transparent',
-                    background: selected
-                      ? 'rgba(0,212,255,0.10)'
-                      : 'transparent',
-                    color: selected
-                      ? '#00d4ff'
-                      : '#b0b0c0',
-                    cursor: 'pointer',
-                    textAlign: 'left',
+                    fontSize: '25px',
+                    marginBottom: '10px',
                   }}
                 >
+                  {tool.icon}
+                </div>
 
-                  <span
-                    style={{
-                      fontSize: '20px',
-                      width: '28px',
-                      textAlign: 'center',
-                    }}
-                  >
-                    {tool.icon}
-                  </span>
+                <div
+                  style={{
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    marginBottom: '5px',
+                  }}
+                >
+                  {tool.name}
+                </div>
 
-
-                  <span
-                    style={{
-                      minWidth: 0,
-                    }}
-                  >
-
-                    <span
-                      style={{
-                        display: 'block',
-                        fontSize: '13px',
-                        fontWeight: '600',
-                      }}
-                    >
-                      {tool.name}
-                    </span>
-
-
-                    <span
-                      style={{
-                        display: 'block',
-                        marginTop: '3px',
-                        fontSize: '11px',
-                        color: '#626274',
-                      }}
-                    >
-                      {tool.category}
-                    </span>
-
-                  </span>
-
-                </button>
-              );
-            })}
-
-          </div>
-
-
-          {/* WORKSPACE */}
-
-          <div
-            style={{
-              minWidth: 0,
-              background:
-                'rgba(10,10,16,0.45)',
-              border:
-                '1px solid rgba(255,255,255,0.06)',
-              borderRadius: '14px',
-              padding: '24px',
-              minHeight: '600px',
-            }}
-          >
-
-            {/* WORKSPACE TITLE */}
-
-            <div
-              style={{
-                borderBottom:
-                  '1px solid rgba(255,255,255,0.06)',
-                paddingBottom: '18px',
-                marginBottom: '24px',
-              }}
-            >
-
-              <div
-                style={{
-                  color: '#555568',
-                  fontSize: '11px',
-                  textTransform: 'uppercase',
-                  letterSpacing: '1px',
-                  marginBottom: '6px',
-                }}
-              >
-                {activeToolData?.category}
-              </div>
-
-
-              <h2
-                style={{
-                  margin: 0,
-                  fontSize: '20px',
-                  color: '#ffffff',
-                }}
-              >
-                {activeToolData?.icon}{' '}
-                {activeToolData?.name}
-              </h2>
-
-
-              <p
-                style={{
-                  margin:
-                    '6px 0 0',
-                  color: '#686879',
-                  fontSize: '13px',
-                }}
-              >
-                {activeToolData?.description}
-              </p>
-
-            </div>
-
-
-            {renderToolWorkspace()}
-
-          </div>
-
+                <div
+                  style={{
+                    color: '#666679',
+                    fontSize: '11px',
+                    lineHeight: '1.5',
+                  }}
+                >
+                  {tool.description}
+                </div>
+              </button>
+            );
+          })}
         </div>
 
-      </div>
+        {/* ==================================================
+            ACTIVE TOOL HEADER
+        ================================================== */}
 
+        {activeToolData && (
+          <div
+            style={{
+              marginBottom: '20px',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '10px',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '25px',
+                }}
+              >
+                {activeToolData.icon}
+              </span>
+
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: '20px',
+                    color: '#ffffff',
+                  }}
+                >
+                  {activeToolData.name}
+                </h2>
+
+                <p
+                  style={{
+                    margin: '4px 0 0',
+                    color: '#666679',
+                    fontSize: '12px',
+                  }}
+                >
+                  {activeToolData.description}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ==================================================
+            TOOL WORKSPACE
+        ================================================== */}
+
+        <div>
+          {renderToolWorkspace()}
+        </div>
+      </div>
     </div>
   );
 };
-
-
-const ComingSoon = ({
-  icon,
-  name,
-}) => {
-
-  return (
-    <div
-      style={{
-        minHeight: '400px',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-      }}
-    >
-
-      <div
-        style={{
-          fontSize: '52px',
-          marginBottom: '16px',
-        }}
-      >
-        {icon}
-      </div>
-
-
-      <h3
-        style={{
-          margin: 0,
-          color: '#ffffff',
-          fontSize: '20px',
-        }}
-      >
-        {name}
-      </h3>
-
-
-      <p
-        style={{
-          color: '#666679',
-          fontSize: '13px',
-          marginTop: '8px',
-        }}
-      >
-        This workspace will be connected next.
-      </p>
-
-    </div>
-  );
-};
-
 
 export default Tools;

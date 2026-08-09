@@ -94,7 +94,10 @@ def create_draft(
 ):
     """Create a draft email using AI."""
     prompt = f"Write a professional email to {draft.to} about {draft.subject}\n\n{draft.body}\n\nWrite a clear, professional email."
-    body = ask_ai(prompt)
+    body = ask_ai(
+    prompt,
+    mode="email_draft"
+)
     
     return {
         "id": 1,

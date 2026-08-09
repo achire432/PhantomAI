@@ -1,355 +1,134 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { video } from '../../api/endpoints';
 
 const VideoGenerationTool = () => {
-  const [mode, setMode] = useState('text');
+  const [prompt, setPrompt] = useState('');
 
-  // Text → Video
-  const [text, setText] = useState('');
-  const [duration, setDuration] = useState(5);
+  const [duration, setDuration] = useState(8);
 
-  // Images → Slideshow
-  const [images, setImages] = useState([]);
-  const [durationPerImage, setDurationPerImage] = useState(3);
+  const [aspectRatio, setAspectRatio] =
+    useState('16:9');
 
-  // Result
-  const [videoUrl, setVideoUrl] = useState(null);
-  const [videoBlob, setVideoBlob] = useState(null);
+  const [resolution, setResolution] =
+    useState('720p');
 
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [videoUrl, setVideoUrl] =
+    useState(null);
 
-  // ----------------------------------------------------------
-  // CLEANUP OBJECT URL
-  // ----------------------------------------------------------
+  const [loading, setLoading] =
+    useState(false);
 
-  useEffect(() => {
-    return () => {
+  const [error, setError] =
+    useState('');
+
+  const generateVideo = async () => {
+    if (!prompt.trim()) {
+      setError(
+        'Please describe the video you want to generate.'
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setError('');
+
       if (videoUrl) {
         URL.revokeObjectURL(videoUrl);
+        setVideoUrl(null);
       }
-    };
-  }, [videoUrl]);
 
-  // ----------------------------------------------------------
-  // CLEAR WORKSPACE
-  // ----------------------------------------------------------
+      const response =
+        await video.text(
+          prompt.trim(),
+          duration,
+          aspectRatio,
+          resolution
+        );
+
+      const blob = response.data;
+
+      if (!blob || blob.size === 0) {
+        throw new Error(
+          'The server returned an empty video.'
+        );
+      }
+
+      const url =
+        URL.createObjectURL(blob);
+
+      setVideoUrl(url);
+
+    } catch (err) {
+      console.error(
+        'Video generation error:',
+        err
+      );
+
+      let message =
+        'Failed to generate video.';
+
+      if (
+        err.response?.data
+      ) {
+        try {
+          const text =
+            await err.response.data.text();
+
+          const parsed =
+            JSON.parse(text);
+
+          message =
+            parsed.detail ||
+            message;
+        } catch {
+          // Keep default error.
+        }
+      }
+
+      if (
+        err.message &&
+        message ===
+          'Failed to generate video.'
+      ) {
+        message =
+          err.message;
+      }
+
+      setError(message);
+
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const clearWorkspace = () => {
     if (videoUrl) {
       URL.revokeObjectURL(videoUrl);
     }
 
-    setText('');
-    setImages([]);
+    setPrompt('');
     setVideoUrl(null);
-    setVideoBlob(null);
     setError('');
   };
 
-  // ----------------------------------------------------------
-  // TEXT → VIDEO
-  // ----------------------------------------------------------
-
-  const generateTextVideo = async () => {
-    if (!text.trim()) {
-      setError('Please enter some text for the video.');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-
-      if (videoUrl) {
-        URL.revokeObjectURL(videoUrl);
-      }
-
-      setVideoUrl(null);
-      setVideoBlob(null);
-
-      const response = await video.text(
-        text.trim(),
-        Number(duration)
-      );
-
-      const blob = response.data;
-
-      if (!(blob instanceof Blob)) {
-        throw new Error(
-          'The server did not return a valid video file.'
-        );
-      }
-
-      if (blob.size === 0) {
-        throw new Error(
-          'The generated video is empty.'
-        );
-      }
-
-      const url = URL.createObjectURL(blob);
-
-      setVideoBlob(blob);
-      setVideoUrl(url);
-
-    } catch (err) {
-      console.error(
-        'Text video generation error:',
-        err
-      );
-
-      await handleVideoError(
-        err,
-        'Failed to generate video.'
-      );
-
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ----------------------------------------------------------
-  // IMAGE FILE → BASE64
-  // ----------------------------------------------------------
-
-  const fileToBase64 = (file) => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = () => {
-        resolve(reader.result);
-      };
-
-      reader.onerror = () => {
-        reject(
-          new Error(
-            `Failed to read ${file.name}.`
-          )
-        );
-      };
-
-      reader.readAsDataURL(file);
-    });
-  };
-
-  // ----------------------------------------------------------
-  // SELECT IMAGES
-  // ----------------------------------------------------------
-
-  const handleImageSelection = async (event) => {
-    try {
-      setError('');
-
-      const selectedFiles = Array.from(
-        event.target.files || []
-      );
-
-      if (!selectedFiles.length) {
-        return;
-      }
-
-      const validFiles = selectedFiles.filter(
-        (file) =>
-          file.type.startsWith('image/')
-      );
-
-      if (!validFiles.length) {
-        setError(
-          'Please select valid image files.'
-        );
-        return;
-      }
-
-      const encodedImages = await Promise.all(
-        validFiles.map(fileToBase64)
-      );
-
-      setImages((previous) => [
-        ...previous,
-        ...encodedImages,
-      ]);
-
-    } catch (err) {
-      console.error(
-        'Image selection error:',
-        err
-      );
-
-      setError(
-        err.message ||
-        'Failed to load images.'
-      );
-    }
-
-    event.target.value = '';
-  };
-
-  // ----------------------------------------------------------
-  // REMOVE IMAGE
-  // ----------------------------------------------------------
-
-  const removeImage = (index) => {
-    setImages((previous) =>
-      previous.filter(
-        (_, imageIndex) =>
-          imageIndex !== index
-      )
-    );
-  };
-
-  // ----------------------------------------------------------
-  // SLIDESHOW → VIDEO
-  // ----------------------------------------------------------
-
-  const generateSlideshow = async () => {
-    if (!images.length) {
-      setError(
-        'Please select at least one image.'
-      );
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setError('');
-
-      if (videoUrl) {
-        URL.revokeObjectURL(videoUrl);
-      }
-
-      setVideoUrl(null);
-      setVideoBlob(null);
-
-      const response = await video.slideshow(
-        images,
-        Number(durationPerImage)
-      );
-
-      const blob = response.data;
-
-      if (!(blob instanceof Blob)) {
-        throw new Error(
-          'The server did not return a valid video file.'
-        );
-      }
-
-      if (blob.size === 0) {
-        throw new Error(
-          'The generated slideshow is empty.'
-        );
-      }
-
-      const url = URL.createObjectURL(blob);
-
-      setVideoBlob(blob);
-      setVideoUrl(url);
-
-    } catch (err) {
-      console.error(
-        'Slideshow generation error:',
-        err
-      );
-
-      await handleVideoError(
-        err,
-        'Failed to generate slideshow.'
-      );
-
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ----------------------------------------------------------
-  // ERROR HANDLER
-  // ----------------------------------------------------------
-
-  const handleVideoError = async (
-    err,
-    fallback
-  ) => {
-    if (
-      err?.response?.data instanceof Blob
-    ) {
-      try {
-        const text = await err.response.data.text();
-
-        try {
-          const json = JSON.parse(text);
-
-          setError(
-            json.detail ||
-            fallback
-          );
-
-          return;
-        } catch {
-          setError(
-            text ||
-            fallback
-          );
-
-          return;
-        }
-      } catch {
-        setError(fallback);
-        return;
-      }
-    }
-
-    setError(
-      err?.response?.data?.detail ||
-      err?.message ||
-      fallback
-    );
-  };
-
-  // ----------------------------------------------------------
-  // DOWNLOAD VIDEO
-  // ----------------------------------------------------------
-
   const downloadVideo = () => {
-    if (!videoUrl) {
-      return;
-    }
+    if (!videoUrl) return;
 
-    const link = document.createElement('a');
+    const link =
+      document.createElement('a');
 
     link.href = videoUrl;
 
     link.download =
-      mode === 'text'
-        ? 'phantom_ai_text_video.mp4'
-        : 'phantom_ai_slideshow.mp4';
+      'phantom_ai_veo_video.mp4';
 
     document.body.appendChild(link);
 
     link.click();
 
-    document.body.removeChild(link);
+    link.remove();
   };
-
-  // ----------------------------------------------------------
-  // FORMAT FILE SIZE
-  // ----------------------------------------------------------
-
-  const formatFileSize = (bytes) => {
-    if (!bytes) {
-      return '0 KB';
-    }
-
-    const mb = bytes / (1024 * 1024);
-
-    if (mb >= 1) {
-      return `${mb.toFixed(2)} MB`;
-    }
-
-    return `${(bytes / 1024).toFixed(1)} KB`;
-  };
-
-  // ----------------------------------------------------------
-  // RENDER
-  // ----------------------------------------------------------
 
   return (
     <div
@@ -360,7 +139,9 @@ const VideoGenerationTool = () => {
       }}
     >
 
+      {/* ================================================= */}
       {/* HEADER */}
+      {/* ================================================= */}
 
       <div
         style={{
@@ -375,15 +156,16 @@ const VideoGenerationTool = () => {
             marginBottom: '8px',
           }}
         >
+
           <div
             style={{
               width: '46px',
               height: '46px',
               borderRadius: '12px',
               background:
-                'rgba(0, 212, 255, 0.12)',
+                'rgba(255,90,90,0.12)',
               border:
-                '1px solid rgba(0, 212, 255, 0.25)',
+                '1px solid rgba(255,90,90,0.25)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -401,95 +183,28 @@ const VideoGenerationTool = () => {
                 fontSize: '24px',
               }}
             >
-              Video Generator
+              AI Video Generator
             </h2>
 
             <p
               style={{
-                margin: '4px 0 0',
+                margin:
+                  '4px 0 0',
                 color: '#77778a',
                 fontSize: '13px',
               }}
             >
-              Create videos from text or images.
+              Create realistic videos
+              with Google Veo 3.1.
             </p>
           </div>
+
         </div>
       </div>
 
-      {/* MODE SELECTOR */}
-
-      <div
-        style={{
-          display: 'flex',
-          gap: '8px',
-          marginBottom: '20px',
-        }}
-      >
-        <button
-          onClick={() => {
-            setMode('text');
-            setError('');
-          }}
-          disabled={loading}
-          style={{
-            flex: 1,
-            padding: '12px',
-            borderRadius: '9px',
-            border:
-              mode === 'text'
-                ? '1px solid rgba(0,212,255,0.35)'
-                : '1px solid rgba(255,255,255,0.08)',
-            background:
-              mode === 'text'
-                ? 'rgba(0,212,255,0.10)'
-                : '#0b0b11',
-            color:
-              mode === 'text'
-                ? '#00d4ff'
-                : '#9999aa',
-            cursor: loading
-              ? 'not-allowed'
-              : 'pointer',
-            fontWeight: '600',
-          }}
-        >
-          📝 Text → Video
-        </button>
-
-        <button
-          onClick={() => {
-            setMode('slideshow');
-            setError('');
-          }}
-          disabled={loading}
-          style={{
-            flex: 1,
-            padding: '12px',
-            borderRadius: '9px',
-            border:
-              mode === 'slideshow'
-                ? '1px solid rgba(0,212,255,0.35)'
-                : '1px solid rgba(255,255,255,0.08)',
-            background:
-              mode === 'slideshow'
-                ? 'rgba(0,212,255,0.10)'
-                : '#0b0b11',
-            color:
-              mode === 'slideshow'
-                ? '#00d4ff'
-                : '#9999aa',
-            cursor: loading
-              ? 'not-allowed'
-              : 'pointer',
-            fontWeight: '600',
-          }}
-        >
-          🖼️ Images → Slideshow
-        </button>
-      </div>
-
-      {/* WORKSPACE */}
+      {/* ================================================= */}
+      {/* PROMPT CARD */}
+      {/* ================================================= */}
 
       <div
         style={{
@@ -503,289 +218,254 @@ const VideoGenerationTool = () => {
         }}
       >
 
-        {/* TEXT MODE */}
+        <label
+          style={{
+            display: 'block',
+            color: '#ffffff',
+            fontSize: '14px',
+            fontWeight: '600',
+            marginBottom: '8px',
+          }}
+        >
+          Describe your video
+        </label>
 
-        {mode === 'text' && (
-          <>
+        <textarea
+          value={prompt}
+          onChange={(event) =>
+            setPrompt(
+              event.target.value
+            )
+          }
+          placeholder="Example: A realistic cinematic shot of a young child walking through a rainy Kampala street at sunset, natural movement, realistic lighting, documentary camera..."
+          rows={8}
+          disabled={loading}
+          style={{
+            width: '100%',
+            boxSizing: 'border-box',
+            resize: 'vertical',
+            padding: '14px',
+            borderRadius: '10px',
+            border:
+              '1px solid rgba(255,255,255,0.08)',
+            background: '#0b0b11',
+            color: '#ffffff',
+            outline: 'none',
+            fontSize: '14px',
+            lineHeight: '1.5',
+          }}
+        />
+
+        {/* ================================================= */}
+        {/* CONTROLS */}
+        {/* ================================================= */}
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns:
+              '1fr 1fr 1fr',
+            gap: '12px',
+            marginTop: '14px',
+          }}
+        >
+
+          {/* Duration */}
+
+          <div>
             <label
               style={{
                 display: 'block',
-                color: '#ffffff',
-                fontSize: '14px',
-                fontWeight: '600',
-                marginBottom: '8px',
+                color: '#8d8da0',
+                fontSize: '12px',
+                marginBottom: '6px',
               }}
             >
-              Describe your video
+              Duration
             </label>
 
-            <textarea
-              value={text}
+            <select
+              value={duration}
               onChange={(event) =>
-                setText(event.target.value)
+                setDuration(
+                  Number(
+                    event.target.value
+                  )
+                )
               }
-              placeholder="Example: Welcome to PhantomAI. This is a demonstration of text-to-video generation."
-              rows={7}
               disabled={loading}
               style={{
                 width: '100%',
-                boxSizing: 'border-box',
-                resize: 'vertical',
-                padding: '14px',
-                borderRadius: '10px',
+                padding: '11px 12px',
+                borderRadius: '9px',
                 border:
                   '1px solid rgba(255,255,255,0.08)',
                 background: '#0b0b11',
                 color: '#ffffff',
-                outline: 'none',
-                fontSize: '14px',
-                lineHeight: '1.5',
-              }}
-            />
-
-            <div
-              style={{
-                marginTop: '14px',
               }}
             >
-              <label
-                style={{
-                  display: 'block',
-                  color: '#8d8da0',
-                  fontSize: '12px',
-                  marginBottom: '6px',
-                }}
-              >
-                Duration: {duration} seconds
-              </label>
+              <option value={4}>
+                4 seconds
+              </option>
 
-              <input
-                type="range"
-                min="1"
-                max="30"
-                value={duration}
-                onChange={(event) =>
-                  setDuration(
-                    Number(event.target.value)
-                  )
-                }
-                disabled={loading}
-                style={{
-                  width: '100%',
-                }}
-              />
-            </div>
+              <option value={6}>
+                6 seconds
+              </option>
 
-            <button
-              onClick={generateTextVideo}
-              disabled={
-                loading ||
-                !text.trim()
-              }
-              style={{
-                width: '100%',
-                marginTop: '18px',
-                padding: '13px',
-                border: 'none',
-                borderRadius: '9px',
-                background:
-                  loading || !text.trim()
-                    ? '#30303a'
-                    : '#00d4ff',
-                color:
-                  loading || !text.trim()
-                    ? '#77778a'
-                    : '#050509',
-                fontWeight: '700',
-                cursor:
-                  loading || !text.trim()
-                    ? 'not-allowed'
-                    : 'pointer',
-              }}
-            >
-              {loading
-                ? '🎬 Generating Video...'
-                : '✨ Generate Video'}
-            </button>
-          </>
-        )}
+              <option value={8}>
+                8 seconds
+              </option>
+            </select>
+          </div>
 
-        {/* SLIDESHOW MODE */}
+          {/* Aspect Ratio */}
 
-        {mode === 'slideshow' && (
-          <>
+          <div>
             <label
               style={{
                 display: 'block',
-                color: '#ffffff',
-                fontSize: '14px',
-                fontWeight: '600',
-                marginBottom: '8px',
+                color: '#8d8da0',
+                fontSize: '12px',
+                marginBottom: '6px',
               }}
             >
-              Select images
+              Aspect Ratio
             </label>
 
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              onChange={handleImageSelection}
+            <select
+              value={aspectRatio}
+              onChange={(event) =>
+                setAspectRatio(
+                  event.target.value
+                )
+              }
               disabled={loading}
               style={{
                 width: '100%',
-                padding: '12px',
+                padding: '11px 12px',
                 borderRadius: '9px',
                 border:
                   '1px solid rgba(255,255,255,0.08)',
                 background: '#0b0b11',
                 color: '#ffffff',
-                boxSizing: 'border-box',
-              }}
-            />
-
-            {images.length > 0 && (
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns:
-                    'repeat(auto-fill,minmax(140px,1fr))',
-                  gap: '12px',
-                  marginTop: '18px',
-                }}
-              >
-                {images.map((image, index) => (
-                  <div
-                    key={`${index}-${image.slice(-20)}`}
-                    style={{
-                      position: 'relative',
-                      background: '#050509',
-                      borderRadius: '9px',
-                      overflow: 'hidden',
-                      border:
-                        '1px solid rgba(255,255,255,0.08)',
-                    }}
-                  >
-                    <img
-                      src={image}
-                      alt={`Selected ${index + 1}`}
-                      style={{
-                        width: '100%',
-                        height: '120px',
-                        objectFit: 'cover',
-                        display: 'block',
-                      }}
-                    />
-
-                    <button
-                      onClick={() =>
-                        removeImage(index)
-                      }
-                      disabled={loading}
-                      style={{
-                        position: 'absolute',
-                        top: '6px',
-                        right: '6px',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        border: 'none',
-                        background:
-                          'rgba(0,0,0,0.75)',
-                        color: '#ffffff',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      ×
-                    </button>
-
-                    <div
-                      style={{
-                        padding: '7px',
-                        color: '#77778a',
-                        fontSize: '11px',
-                      }}
-                    >
-                      Image {index + 1}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div
-              style={{
-                marginTop: '18px',
               }}
             >
-              <label
-                style={{
-                  display: 'block',
-                  color: '#8d8da0',
-                  fontSize: '12px',
-                  marginBottom: '6px',
-                }}
-              >
-                Seconds per image:{' '}
-                {durationPerImage}
-              </label>
+              <option value="16:9">
+                16:9 Landscape
+              </option>
 
-              <input
-                type="range"
-                min="1"
-                max="15"
-                value={durationPerImage}
-                onChange={(event) =>
-                  setDurationPerImage(
-                    Number(event.target.value)
-                  )
-                }
-                disabled={loading}
-                style={{
-                  width: '100%',
-                }}
-              />
-            </div>
+              <option value="9:16">
+                9:16 Portrait
+              </option>
+            </select>
+          </div>
 
-            <button
-              onClick={generateSlideshow}
-              disabled={
-                loading ||
-                images.length === 0
+          {/* Resolution */}
+
+          <div>
+            <label
+              style={{
+                display: 'block',
+                color: '#8d8da0',
+                fontSize: '12px',
+                marginBottom: '6px',
+              }}
+            >
+              Resolution
+            </label>
+
+            <select
+              value={resolution}
+              onChange={(event) =>
+                setResolution(
+                  event.target.value
+                )
               }
+              disabled={loading}
               style={{
                 width: '100%',
-                marginTop: '18px',
-                padding: '13px',
-                border: 'none',
+                padding: '11px 12px',
                 borderRadius: '9px',
-                background:
-                  loading ||
-                  images.length === 0
-                    ? '#30303a'
-                    : '#00d4ff',
-                color:
-                  loading ||
-                  images.length === 0
-                    ? '#77778a'
-                    : '#050509',
-                fontWeight: '700',
-                cursor:
-                  loading ||
-                  images.length === 0
-                    ? 'not-allowed'
-                    : 'pointer',
+                border:
+                  '1px solid rgba(255,255,255,0.08)',
+                background: '#0b0b11',
+                color: '#ffffff',
               }}
             >
-              {loading
-                ? '🎬 Creating Slideshow...'
-                : '✨ Create Slideshow'}
-            </button>
-          </>
+              <option value="720p">
+                720p
+              </option>
+
+              <option
+                value="1080p"
+              >
+                1080p
+              </option>
+            </select>
+          </div>
+
+        </div>
+
+        {/* ================================================= */}
+        {/* GENERATE BUTTON */}
+        {/* ================================================= */}
+
+        <button
+          onClick={generateVideo}
+          disabled={
+            loading ||
+            !prompt.trim()
+          }
+          style={{
+            width: '100%',
+            marginTop: '16px',
+            padding: '13px 18px',
+            border: 'none',
+            borderRadius: '9px',
+            background:
+              loading ||
+              !prompt.trim()
+                ? '#30303a'
+                : '#ff5a5a',
+            color:
+              loading ||
+              !prompt.trim()
+                ? '#77778a'
+                : '#ffffff',
+            fontWeight: '700',
+            cursor:
+              loading ||
+              !prompt.trim()
+                ? 'not-allowed'
+                : 'pointer',
+          }}
+        >
+          {loading
+            ? '🎬 Generating real AI video...'
+            : '🎬 Generate AI Video'}
+        </button>
+
+        {loading && (
+          <p
+            style={{
+              margin:
+                '12px 0 0',
+              textAlign: 'center',
+              color: '#77778a',
+              fontSize: '12px',
+            }}
+          >
+            Veo generation can take
+            a few minutes. Keep this
+            page open.
+          </p>
         )}
+
       </div>
 
+      {/* ================================================= */}
       {/* ERROR */}
+      {/* ================================================= */}
 
       {error && (
         <div
@@ -799,13 +479,16 @@ const VideoGenerationTool = () => {
               '1px solid rgba(249,112,102,0.25)',
             color: '#ffaaa3',
             fontSize: '14px',
+            lineHeight: '1.5',
           }}
         >
           {error}
         </div>
       )}
 
-      {/* RESULT */}
+      {/* ================================================= */}
+      {/* VIDEO RESULT */}
+      {/* ================================================= */}
 
       {videoUrl && (
         <div
@@ -818,42 +501,26 @@ const VideoGenerationTool = () => {
             padding: '20px',
           }}
         >
+
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
+              justifyContent:
+                'space-between',
               marginBottom: '14px',
-              flexWrap: 'wrap',
             }}
           >
-            <div>
-              <h3
-                style={{
-                  margin: 0,
-                  color: '#ffffff',
-                  fontSize: '16px',
-                }}
-              >
-                🎬 Generated Video
-              </h3>
 
-              {videoBlob && (
-                <p
-                  style={{
-                    margin:
-                      '5px 0 0',
-                    color: '#77778a',
-                    fontSize: '12px',
-                  }}
-                >
-                  {formatFileSize(
-                    videoBlob.size
-                  )}
-                </p>
-              )}
-            </div>
+            <h3
+              style={{
+                margin: 0,
+                color: '#ffffff',
+                fontSize: '16px',
+              }}
+            >
+              Generated Video
+            </h3>
 
             <div
               style={{
@@ -861,37 +528,47 @@ const VideoGenerationTool = () => {
                 gap: '8px',
               }}
             >
+
               <button
-                onClick={downloadVideo}
+                onClick={
+                  downloadVideo
+                }
                 style={{
-                  padding: '8px 13px',
+                  padding:
+                    '7px 12px',
                   borderRadius: '7px',
-                  border:
-                    '1px solid rgba(0,212,255,0.25)',
+                  border: 'none',
                   background:
-                    'rgba(0,212,255,0.08)',
-                  color: '#00d4ff',
-                  cursor: 'pointer',
-                  fontWeight: '600',
+                    '#00d4ff',
+                  color: '#050509',
+                  fontWeight: '700',
+                  cursor:
+                    'pointer',
                 }}
               >
                 ⬇ Download
               </button>
 
               <button
-                onClick={clearWorkspace}
+                onClick={
+                  clearWorkspace
+                }
                 style={{
-                  padding: '8px 13px',
+                  padding:
+                    '7px 12px',
                   borderRadius: '7px',
                   border:
                     '1px solid rgba(255,255,255,0.08)',
-                  background: 'transparent',
+                  background:
+                    'transparent',
                   color: '#9999aa',
-                  cursor: 'pointer',
+                  cursor:
+                    'pointer',
                 }}
               >
                 Clear
               </button>
+
             </div>
           </div>
 
@@ -904,7 +581,8 @@ const VideoGenerationTool = () => {
               width: '100%',
               maxHeight: '650px',
               borderRadius: '10px',
-              background: '#000000',
+              background:
+                '#050509',
             }}
           />
 
@@ -925,11 +603,11 @@ const VideoGenerationTool = () => {
                 color: '#b0b0c0',
               }}
             >
-              Result:
+              Prompt:
             </strong>{' '}
-            Video generated successfully
-            by PhantomAI.
+            {prompt}
           </div>
+
         </div>
       )}
 

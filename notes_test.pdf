@@ -1,0 +1,81 @@
+HTTP/1.1 200 OK
+date: Sun, 09 Aug 2026 13:46:15 GMT
+server: uvicorn
+content-disposition: attachment; filename="notes.pdf"
+content-length: 1727
+content-type: application/pdf
+
+%PDF-1.4
+%“Œ‹ž ReportLab Generated PDF document (opensource)
+1 0 obj
+<<
+/F1 2 0 R /F2 3 0 R
+>>
+endobj
+2 0 obj
+<<
+/BaseFont /Helvetica /Encoding /WinAnsiEncoding /Name /F1 /Subtype /Type1 /Type /Font
+>>
+endobj
+3 0 obj
+<<
+/BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding /Name /F2 /Subtype /Type1 /Type /Font
+>>
+endobj
+4 0 obj
+<<
+/Contents 8 0 R /MediaBox [ 0 0 612 792 ] /Parent 7 0 R /Resources <<
+/Font 1 0 R /ProcSet [ /PDF /Text /ImageB /ImageC /ImageI ]
+>> /Rotate 0 /Trans <<
+
+>> 
+  /Type /Page
+>>
+endobj
+5 0 obj
+<<
+/PageMode /UseNone /Pages 7 0 R /Type /Catalog
+>>
+endobj
+6 0 obj
+<<
+/Author (PhantomAI) /CreationDate (D:20260809164616+03'00') /Creator (\(unspecified\)) /Keywords () /ModDate (D:20260809164616+03'00') /Producer (ReportLab PDF Library - \(opensource\)) 
+  /Subject (\(unspecified\)) /Title (PhantomAI Report) /Trapped /False
+>>
+endobj
+7 0 obj
+<<
+/Count 1 /Kids [ 4 0 R ] /Type /Pages
+>>
+endobj
+8 0 obj
+<<
+/Filter [ /ASCII85Decode /FlateDecode ] /Length 326
+>>
+stream
+Gasai>t`'h'RfGR30.!?G&NP@mG90L&Tg^f+/gf]%,,0maSrkECh6(t-'/f.f/`"LaBstr9*<sO/Ck5qY^<Si)YO3@2LEWe9GnJ.0OnAK`0Fc,fH3E^O4/.Z7Bd55GHQ(:4h)N(:Y<D4mEd_kq^^;Dlua.ihPI#%\sus5otc4*8tWbrWR_Uf1>[VD#p-KF=m4Y9<icXnBHlXoG-R?pdB/A!Are<U]"u)[,"ee-WCNtHlk@l-'r-Y5Q'(<D(J@;^AkqHX.^3&jo.RY2jCqRpPC"#S;Z,Q]jHD!hnFsNbW,'kU%3**\lQ,]T8%TFk+CnheidBn~>endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000061 00000 n 
+0000000102 00000 n 
+0000000209 00000 n 
+0000000321 00000 n 
+0000000514 00000 n 
+0000000582 00000 n 
+0000000861 00000 n 
+0000000920 00000 n 
+trailer
+<<
+/ID 
+[<d717e43e9128f2beb9c79416ed8f9198><d717e43e9128f2beb9c79416ed8f9198>]
+% ReportLab generated PDF document -- digest (opensource)
+
+/Info 6 0 R
+/Root 5 0 R
+/Size 9
+>>
+startxref
+1336
+%%EOF
