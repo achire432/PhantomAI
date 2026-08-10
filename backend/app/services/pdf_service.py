@@ -599,3 +599,104 @@ def generate_tasks_pdf(tasks_data: list) -> BytesIO:
     buffer.seek(0)
 
     return buffer
+
+from io import BytesIO
+
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.lib.enums import TA_CENTER
+from reportlab.platypus import (
+    SimpleDocTemplate,
+    Paragraph,
+    Spacer,
+)
+from reportlab.lib.units import mm
+
+
+def generate_file_pdf(
+    file_name: str,
+    file_path: str,
+    content: str,
+):
+    """
+    Generate a PDF containing extracted file content.
+    """
+
+    buffer = BytesIO()
+
+    document = SimpleDocTemplate(
+        buffer,
+        pagesize=A4,
+        rightMargin=20 * mm,
+        leftMargin=20 * mm,
+        topMargin=20 * mm,
+        bottomMargin=20 * mm,
+    )
+
+    styles = getSampleStyleSheet()
+
+    title_style = styles["Title"]
+    title_style.alignment = TA_CENTER
+
+    body_style = styles["BodyText"]
+    body_style.leading = 15
+
+    story = []
+
+    story.append(
+        Paragraph(
+            "PhantomAI File Export",
+            title_style,
+        )
+    )
+
+    story.append(
+        Spacer(1, 12)
+    )
+
+    story.append(
+        Paragraph(
+            f"<b>File:</b> {file_name}",
+            body_style,
+        )
+    )
+
+    story.append(
+        Paragraph(
+            f"<b>Path:</b> {file_path}",
+            body_style,
+        )
+    )
+
+    story.append(
+        Spacer(1, 15)
+    )
+
+    # Split content into paragraphs
+    paragraphs = content.split("\n")
+
+    for paragraph in paragraphs:
+        clean_text = (
+            paragraph
+            .replace("&", "&amp;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+        )
+
+        if clean_text.strip():
+            story.append(
+                Paragraph(
+                    clean_text,
+                    body_style,
+                )
+            )
+
+            story.append(
+                Spacer(1, 6)
+            )
+
+    document.build(story)
+
+    buffer.seek(0)
+
+    return buffer

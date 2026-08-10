@@ -209,6 +209,14 @@ email: {
     api.get('/email/drafts'),
 },
 
+// ----------------------------------------------------------
+// CALCULATOR
+// ----------------------------------------------------------
+
+calculator: (expression) =>
+  api.post('/calculator/calculate', {
+    expression,
+  }),
   // ----------------------------------------------------------
   // REMINDERS
   // ----------------------------------------------------------
@@ -271,34 +279,55 @@ email: {
   },
 
   // ----------------------------------------------------------
-  // FILES
-  // ----------------------------------------------------------
+// FILES
+// ----------------------------------------------------------
 
-  files: {
-    list: () =>
-      api.get('/files/list'),
+files: {
+  list: (path = '') =>
+    api.get('/files/list', {
+      params: path ? { path } : {},
+    }),
 
-    info: (path) =>
-      api.get('/files/info', {
-        params: {
-          path,
-        },
-      }),
+  info: (path) =>
+    api.get('/files/info', {
+      params: { path },
+    }),
 
-    search: (query) =>
-      api.get('/files/search', {
-        params: {
-          query,
-        },
-      }),
+  search: (query, path = '') =>
+    api.get('/files/search', {
+      params: {
+        query,
+        ...(path ? { path } : {}),
+      },
+    }),
 
-    size: (path) =>
-      api.get('/files/size', {
-        params: {
-          path,
-        },
-      }),
-  },
+  size: (path) =>
+    api.get('/files/size', {
+      params: { path },
+    }),
+
+  read: (path) =>
+    api.get('/files/read', {
+      params: { path },
+    }),
+
+  ask: (path, question) =>
+    api.post('/files/ask', {
+      path,
+      question,
+    }),
+
+  summarize: (path) =>
+    api.post('/files/summarize', {
+      path,
+    }),
+
+  exportPdf: (path) =>
+    api.get('/files/export-pdf', {
+      params: { path },
+      responseType: 'blob',
+    }),
+},
 
   // ----------------------------------------------------------
   // DATABASE

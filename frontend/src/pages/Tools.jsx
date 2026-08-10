@@ -10,6 +10,9 @@ import RemindersTool from '../components/tools/RemindersTool';
 import TasksTool from '../components/tools/TasksTool';
 import CalendarTool from '../components/tools/CalendarTool';
 import EmailTool from '../components/tools/EmailTool';
+import CalculatorTool from '../components/tools/CalculatorTool';
+import WeatherTool from '../components/tools/WeatherTool';
+import FilesTool from '../components/tools/FilesTool';
 
 // ============================================================
 // TOOL LIST
@@ -273,28 +276,15 @@ const Tools = () => {
         );
 
       case 'calculator':
-        return (
-          <ComingSoon
-            icon="🧮"
-            name="Calculator"
-          />
-        );
+        return <CalculatorTool />;
 
       case 'weather':
-        return (
-          <ComingSoon
-            icon="🌤️"
-            name="Weather"
-          />
-        );
+        return <WeatherTool />;
 
       case 'files':
-        return (
-          <ComingSoon
-            icon="📁"
-            name="Files"
-          />
-        );
+        return <FilesTool />;
+
+      
 
       case 'web':
         return (

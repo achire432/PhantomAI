@@ -59,6 +59,7 @@ from backend.app.routers.images import router as images_router
 from backend.app.routers.api_keys import router as api_keys_router
 from backend.app.routers.video import router as video_router
 from backend.app.routers.settings import router as settings_router
+from backend.app.routers.calculator import router as calculator_router
 
 # --- DATABASE IMPORTS ---
 # This connects to your PostgreSQL database and handles the ORM (Object-Relational Mapping)
@@ -119,7 +120,7 @@ app.include_router(images_router)        # Images (Image processing)
 app.include_router(api_keys_router)      # API Keys (Manage external API keys)
 app.include_router(video_router)         # Video (Video generation)
 app.include_router(settings_router)      # Settings (Global application settings)
-
+app.include_router(calculator_router)    # Calculator (Mathematical calculations)
 # ============================================
 # 4. ROOT / DISCOVERY ENDPOINTS
 # ============================================
