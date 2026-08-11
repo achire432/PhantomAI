@@ -13,6 +13,7 @@ import EmailTool from '../components/tools/EmailTool';
 import CalculatorTool from '../components/tools/CalculatorTool';
 import WeatherTool from '../components/tools/WeatherTool';
 import FilesTool from '../components/tools/FilesTool';
+import WebSearchTool from '../components/tools/WebSearchTool';
 
 // ============================================================
 // TOOL LIST
@@ -287,12 +288,7 @@ const Tools = () => {
       
 
       case 'web':
-        return (
-          <ComingSoon
-            icon="🌐"
-            name="Web Search"
-          />
-        );
+        return <WebSearchTool />;
 
       default:
         return null;

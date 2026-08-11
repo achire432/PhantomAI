@@ -1,707 +1,810 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { tools } from '../../api/endpoints';
+import axios from 'axios';
 
-const NotesTool = () => {
-  const [notes, setNotes] = useState([]);
-  const [selectedNote, setSelectedNote] = useState(null);
+// ============================================================
+// AXIOS CLIENT
+// ============================================================
 
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+const api = axios.create({
+  baseURL: 'http://127.0.0.1:8000',
+  headers: {
+    Accept: 'application/json',
+  },
+});
 
-  const [search, setSearch] = useState('');
+// ============================================================
+// AUTH TOKEN INTERCEPTOR
+// ============================================================
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
 
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
-
-  // ============================================================
-  // LOAD NOTES
-  // ============================================================
-
-  const loadNotes = async () => {
-    try {
-      setLoading(true);
-      setError('');
-
-      const response = await tools.notes.getAll();
-
-      setNotes(response.data || []);
-    } catch (err) {
-      console.error('Failed to load notes:', err);
-
-      setError(
-        err?.response?.data?.detail ||
-          'Unable to load your notes.'
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ============================================================
-  // INITIAL LOAD
-  // ============================================================
-
-  useEffect(() => {
-    loadNotes();
-  }, []);
-
-  // ============================================================
-  // CLEAR MESSAGES
-  // ============================================================
-
-  const clearMessages = () => {
-    setError('');
-    setSuccess('');
-  };
-
-  // ============================================================
-  // NEW NOTE
-  // ============================================================
-
-  const createNewNote = () => {
-    clearMessages();
-
-    setSelectedNote(null);
-    setTitle('');
-    setContent('');
-  };
-
-  // ============================================================
-  // SELECT NOTE
-  // ============================================================
-
-  const selectNote = (note) => {
-    clearMessages();
-
-    setSelectedNote(note);
-    setTitle(note.title || '');
-    setContent(note.content || '');
-  };
-
-  // ============================================================
-  // SAVE NOTE
-  // ============================================================
-
-  const saveNote = async () => {
-    clearMessages();
-
-    if (!title.trim()) {
-      setError('Please enter a note title.');
-      return;
+    if (token) {
+      config.headers = config.headers || {};
+      config.headers.Authorization = `Bearer ${token}`;
     }
 
-    if (!content.trim()) {
-      setError('Please enter some note content.');
-      return;
-    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
 
-    try {
-      setSaving(true);
+// ============================================================
+// AUTHENTICATION
+// ============================================================
 
-      let response;
-
-      // --------------------------------------------------------
-      // CREATE
-      // --------------------------------------------------------
-
-      if (!selectedNote) {
-        response = await tools.notes.create({
-          title: title.trim(),
-          content: content.trim(),
-        });
-
-        const createdNote = response.data;
-
-        setNotes((previous) => [
-          createdNote,
-          ...previous,
-        ]);
-
-        setSelectedNote(createdNote);
-
-        setTitle(createdNote.title || '');
-        setContent(createdNote.content || '');
-
-        setSuccess('Note created successfully.');
+export const auth = {
+  login: (email, password) =>
+    api.post(
+      '/auth/login',
+      new URLSearchParams({
+        username: email,
+        password,
+      }),
+      {
+        headers: {
+          'Content-Type':
+            'application/x-www-form-urlencoded',
+        },
       }
+    ),
 
-      // --------------------------------------------------------
-      // UPDATE
-      // --------------------------------------------------------
+  register: (full_name, email, password) =>
+    api.post('/auth/register', {
+      full_name,
+      email,
+      password,
+    }),
 
-      else {
-        response = await tools.notes.update(
-          selectedNote.id,
-          {
-            title: title.trim(),
-            content: content.trim(),
-          }
-        );
-
-        const updatedNote = response.data;
-
-        setNotes((previous) =>
-          previous.map((note) =>
-            note.id === updatedNote.id
-              ? updatedNote
-              : note
-          )
-        );
-
-        setSelectedNote(updatedNote);
-
-        setTitle(updatedNote.title || '');
-        setContent(updatedNote.content || '');
-
-        setSuccess('Note updated successfully.');
-      }
-    } catch (err) {
-      console.error('Failed to save note:', err);
-
-      setError(
-        err?.response?.data?.detail ||
-          'Unable to save the note.'
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  // ============================================================
-  // DELETE NOTE
-  // ============================================================
-
-  const deleteNote = async () => {
-    if (!selectedNote) {
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Delete "${selectedNote.title}"? This cannot be undone.`
-    );
-
-    if (!confirmed) {
-      return;
-    }
-
-    try {
-      setDeleting(true);
-      clearMessages();
-
-      await tools.notes.delete(selectedNote.id);
-
-      setNotes((previous) =>
-        previous.filter(
-          (note) => note.id !== selectedNote.id
-        )
-      );
-
-      setSelectedNote(null);
-      setTitle('');
-      setContent('');
-
-      setSuccess('Note deleted successfully.');
-    } catch (err) {
-      console.error('Failed to delete note:', err);
-
-      setError(
-        err?.response?.data?.detail ||
-          'Unable to delete the note.'
-      );
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  // ============================================================
-  // SEARCH
-  // ============================================================
-
-  const filteredNotes = useMemo(() => {
-    const query = search.trim().toLowerCase();
-
-    if (!query) {
-      return notes;
-    }
-
-    return notes.filter((note) => {
-      const noteTitle = (
-        note.title || ''
-      ).toLowerCase();
-
-      const noteContent = (
-        note.content || ''
-      ).toLowerCase();
-
-      return (
-        noteTitle.includes(query) ||
-        noteContent.includes(query)
-      );
-    });
-  }, [notes, search]);
-
-  // ============================================================
-  // FORMAT DATE
-  // ============================================================
-
-  const formatDate = (date) => {
-    if (!date) {
-      return '';
-    }
-
-    try {
-      return new Date(date).toLocaleString();
-    } catch {
-      return '';
-    }
-  };
-
-  // ============================================================
-  // UI
-  // ============================================================
-
-  return (
-    <div
-      style={{
-        width: '100%',
-        minHeight: '650px',
-        display: 'grid',
-        gridTemplateColumns: '300px minmax(0, 1fr)',
-        borderRadius: '18px',
-        overflow: 'hidden',
-        border: '1px solid rgba(255,255,255,0.07)',
-        background: '#0b0b12',
-        boxSizing: 'border-box',
-      }}
-    >
-
-      {/* ======================================================
-          SIDEBAR
-      ====================================================== */}
-
-      <aside
-        style={{
-          borderRight:
-            '1px solid rgba(255,255,255,0.07)',
-          background: '#08080e',
-          display: 'flex',
-          flexDirection: 'column',
-          minWidth: 0,
-        }}
-      >
-
-        {/* HEADER */}
-
-        <div
-          style={{
-            padding: '20px',
-            borderBottom:
-              '1px solid rgba(255,255,255,0.07)',
-          }}
-        >
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              gap: '10px',
-              marginBottom: '15px',
-            }}
-          >
-            <div>
-              <div
-                style={{
-                  color: '#ffffff',
-                  fontSize: '17px',
-                  fontWeight: '700',
-                }}
-              >
-                📝 Notes
-              </div>
-
-              <div
-                style={{
-                  color: '#68687a',
-                  fontSize: '11px',
-                  marginTop: '4px',
-                }}
-              >
-                {notes.length} note
-                {notes.length === 1 ? '' : 's'}
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={createNewNote}
-              style={{
-                border: 'none',
-                borderRadius: '9px',
-                padding: '8px 11px',
-                background:
-                  'rgba(0,212,255,0.12)',
-                border:
-                  '1px solid rgba(0,212,255,0.25)',
-                color: '#00d4ff',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: '12px',
-              }}
-            >
-              + New
-            </button>
-          </div>
-
-          {/* SEARCH */}
-
-          <input
-            value={search}
-            onChange={(event) =>
-              setSearch(event.target.value)
-            }
-            placeholder="Search notes..."
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              padding: '10px 12px',
-              borderRadius: '9px',
-              border:
-                '1px solid rgba(255,255,255,0.08)',
-              background: '#11111a',
-              color: '#ffffff',
-              outline: 'none',
-              fontSize: '12px',
-            }}
-          />
-        </div>
-
-        {/* NOTE LIST */}
-
-        <div
-          style={{
-            flex: 1,
-            overflowY: 'auto',
-            padding: '10px',
-          }}
-        >
-          {loading ? (
-            <div
-              style={{
-                padding: '20px 10px',
-                color: '#68687a',
-                fontSize: '12px',
-                textAlign: 'center',
-              }}
-            >
-              Loading notes...
-            </div>
-          ) : filteredNotes.length === 0 ? (
-            <div
-              style={{
-                padding: '30px 15px',
-                color: '#68687a',
-                fontSize: '12px',
-                textAlign: 'center',
-                lineHeight: '1.6',
-              }}
-            >
-              {search
-                ? 'No notes match your search.'
-                : 'You have no notes yet.'}
-            </div>
-          ) : (
-            filteredNotes.map((note) => {
-              const active =
-                selectedNote?.id === note.id;
-
-              return (
-                <button
-                  key={note.id}
-                  type="button"
-                  onClick={() => selectNote(note)}
-                  style={{
-                    width: '100%',
-                    textAlign: 'left',
-                    borderRadius: '10px',
-                    border: active
-                      ? '1px solid rgba(0,212,255,0.3)'
-                      : '1px solid transparent',
-                    background: active
-                      ? 'rgba(0,212,255,0.08)'
-                      : 'transparent',
-                    padding: '12px',
-                    marginBottom: '6px',
-                    cursor: 'pointer',
-                    color: '#ffffff',
-                  }}
-                >
-                  <div
-                    style={{
-                      fontWeight: '600',
-                      fontSize: '13px',
-                      marginBottom: '5px',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {note.title}
-                  </div>
-
-                  <div
-                    style={{
-                      color: '#77778a',
-                      fontSize: '11px',
-                      lineHeight: '1.4',
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {note.content}
-                  </div>
-
-                  <div
-                    style={{
-                      color: '#4e4e60',
-                      fontSize: '9px',
-                      marginTop: '7px',
-                    }}
-                  >
-                    {formatDate(note.updated_at)}
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
-      </aside>
-
-      {/* ======================================================
-          EDITOR
-      ====================================================== */}
-
-      <main
-        style={{
-          minWidth: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          background: '#0d0d15',
-        }}
-      >
-
-        {/* EDITOR HEADER */}
-
-        <div
-          style={{
-            minHeight: '70px',
-            padding: '15px 20px',
-            boxSizing: 'border-box',
-            borderBottom:
-              '1px solid rgba(255,255,255,0.07)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '15px',
-          }}
-        >
-          <div>
-            <div
-              style={{
-                color: '#ffffff',
-                fontWeight: '700',
-                fontSize: '15px',
-              }}
-            >
-              {selectedNote
-                ? 'Edit Note'
-                : 'New Note'}
-            </div>
-
-            <div
-              style={{
-                color: '#5e5e70',
-                fontSize: '10px',
-                marginTop: '4px',
-              }}
-            >
-              {selectedNote
-                ? `Last updated ${formatDate(
-                    selectedNote.updated_at
-                  )}`
-                : 'Create a new personal note'}
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: '8px',
-            }}
-          >
-            {selectedNote && (
-              <button
-                type="button"
-                onClick={deleteNote}
-                disabled={deleting}
-                style={{
-                  padding: '9px 13px',
-                  borderRadius: '8px',
-                  border:
-                    '1px solid rgba(255,80,80,0.25)',
-                  background:
-                    'rgba(255,80,80,0.08)',
-                  color: '#ff7373',
-                  cursor: deleting
-                    ? 'not-allowed'
-                    : 'pointer',
-                  fontSize: '11px',
-                  opacity: deleting ? 0.6 : 1,
-                }}
-              >
-                {deleting
-                  ? 'Deleting...'
-                  : 'Delete'}
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={saveNote}
-              disabled={saving}
-              style={{
-                padding: '9px 15px',
-                borderRadius: '8px',
-                border:
-                  '1px solid rgba(0,212,255,0.3)',
-                background:
-                  'rgba(0,212,255,0.12)',
-                color: '#00d4ff',
-                cursor: saving
-                  ? 'not-allowed'
-                  : 'pointer',
-                fontSize: '11px',
-                fontWeight: '700',
-                opacity: saving ? 0.6 : 1,
-              }}
-            >
-              {saving
-                ? 'Saving...'
-                : selectedNote
-                  ? 'Save Changes'
-                  : 'Save Note'}
-            </button>
-          </div>
-        </div>
-
-        {/* MESSAGES */}
-
-        {(error || success) && (
-          <div
-            style={{
-              padding: '10px 20px',
-              borderBottom:
-                '1px solid rgba(255,255,255,0.05)',
-              background: error
-                ? 'rgba(255,70,70,0.05)'
-                : 'rgba(0,255,150,0.04)',
-              color: error
-                ? '#ff7c7c'
-                : '#66e0ad',
-              fontSize: '11px',
-            }}
-          >
-            {error || success}
-          </div>
-        )}
-
-        {/* TITLE */}
-
-        <div
-          style={{
-            padding: '25px 25px 10px',
-          }}
-        >
-          <input
-            value={title}
-            onChange={(event) =>
-              setTitle(event.target.value)
-            }
-            placeholder="Note title..."
-            style={{
-              width: '100%',
-              boxSizing: 'border-box',
-              border: 'none',
-              outline: 'none',
-              background: 'transparent',
-              color: '#ffffff',
-              fontSize: '25px',
-              fontWeight: '700',
-            }}
-          />
-        </div>
-
-        {/* CONTENT */}
-
-        <div
-          style={{
-            flex: 1,
-            padding: '10px 25px 25px',
-            display: 'flex',
-          }}
-        >
-          <textarea
-            value={content}
-            onChange={(event) =>
-              setContent(event.target.value)
-            }
-            placeholder="Start writing your note..."
-            style={{
-              width: '100%',
-              minHeight: '420px',
-              resize: 'vertical',
-              boxSizing: 'border-box',
-              border: 'none',
-              outline: 'none',
-              background: 'transparent',
-              color: '#d7d7e0',
-              fontSize: '14px',
-              lineHeight: '1.8',
-              fontFamily:
-                'inherit',
-            }}
-          />
-        </div>
-
-        {/* FOOTER */}
-
-        <div
-          style={{
-            padding: '10px 20px',
-            borderTop:
-              '1px solid rgba(255,255,255,0.05)',
-            color: '#505061',
-            fontSize: '10px',
-            display: 'flex',
-            justifyContent: 'space-between',
-          }}
-        >
-          <span>
-            {content.length} characters
-          </span>
-
-          <span>
-            PhantomAI Notes
-          </span>
-        </div>
-      </main>
-    </div>
-  );
+  me: () => api.get('/auth/me'),
 };
 
-export default NotesTool;
+// ============================================================
+// CHAT / CONVERSATIONS
+// ============================================================
+
+export const chat = {
+  conversations: () =>
+    api.get('/conversations/'),
+
+  createConversation: (title) =>
+    api.post('/conversations/', {
+      title,
+    }),
+
+  getConversation: (id) =>
+    api.get(`/conversations/${id}`),
+
+  getMessages: (id) =>
+    api.get(`/conversations/${id}/messages`),
+
+  sendMessage: (id, message) =>
+    api.post(`/chat/${id}/send`, {
+      role: 'user',
+      content: message,
+    }),
+};
+
+// ============================================================
+// MEMORY
+// ============================================================
+
+export const memory = {
+  getAll: () =>
+    api.get('/memory/'),
+
+  create: (data) =>
+    api.post('/memory/', data),
+
+  delete: (key) =>
+    api.delete(
+      `/memory/${encodeURIComponent(key)}`
+    ),
+
+  search: (query) =>
+    api.get(
+      `/memory/search/${encodeURIComponent(query)}`
+    ),
+
+  forAI: () =>
+    api.get('/memory/for-ai'),
+};
+
+// ============================================================
+// GENERAL TOOLS
+// ============================================================
+
+export const tools = {
+  // ----------------------------------------------------------
+  // NOTES
+  // ----------------------------------------------------------
+
+  notes: {
+    getAll: () =>
+      api.get('/notes/'),
+
+    get: (id) =>
+      api.get(`/notes/${id}`),
+
+    create: (data) =>
+      api.post('/notes/', data),
+
+    update: (id, data) =>
+      api.put(`/notes/${id}`, data),
+
+    delete: (id) =>
+      api.delete(`/notes/${id}`),
+  },
+
+  // ----------------------------------------------------------
+  // TASKS
+  // ----------------------------------------------------------
+
+  tasks: {
+    getAll: () =>
+      api.get('/tasks/'),
+
+    get: (id) =>
+      api.get(`/tasks/${id}`),
+
+    create: (data) =>
+      api.post('/tasks/', data),
+
+    update: (id, data) =>
+      api.put(`/tasks/${id}`, data),
+
+    delete: (id) =>
+      api.delete(`/tasks/${id}`),
+  },
+
+  // ----------------------------------------------------------
+  // WEATHER
+  // ----------------------------------------------------------
+
+  weather: (city) =>
+    api.get(
+      `/weather/${encodeURIComponent(city)}`
+    ),
+
+  // ----------------------------------------------------------
+  // CALENDAR
+  // ----------------------------------------------------------
+
+  calendar: {
+    getAll: () =>
+      api.get('/calendar/'),
+
+    get: (id) =>
+      api.get(`/calendar/${id}`),
+
+    create: (data) =>
+      api.post('/calendar/', data),
+
+    update: (id, data) =>
+      api.put(`/calendar/${id}`, data),
+
+    delete: (id) =>
+      api.delete(`/calendar/${id}`),
+  },
+
+  // ----------------------------------------------------------
+  // EMAIL
+  // ----------------------------------------------------------
+
+  email: {
+    getRecent: (limit = 10) =>
+      api.get('/email/recent', {
+        params: {
+          limit,
+        },
+      }),
+
+    summarize: (id) =>
+      api.get(`/email/${id}/summarize`),
+
+    createDraft: (data) =>
+      api.post('/email/draft', data),
+
+    send: (data) =>
+      api.post('/email/send', data),
+
+    getDrafts: () =>
+      api.get('/email/drafts'),
+  },
+
+  // ----------------------------------------------------------
+  // CALCULATOR
+  // ----------------------------------------------------------
+
+  calculator: (expression) =>
+    api.post('/calculator/calculate', {
+      expression,
+    }),
+
+  // ----------------------------------------------------------
+  // REMINDERS
+  // ----------------------------------------------------------
+
+  reminders: {
+    getAll: (upcoming = true) =>
+      api.get('/reminders/', {
+        params: {
+          upcoming,
+        },
+      }),
+
+    get: (id) =>
+      api.get(`/reminders/${id}`),
+
+    create: (data) =>
+      api.post('/reminders/', data),
+
+    update: (id, data) =>
+      api.put(`/reminders/${id}`, data),
+
+    delete: (id) =>
+      api.delete(`/reminders/${id}`),
+
+    complete: (id) =>
+      api.post(`/reminders/${id}/complete`),
+  },
+
+  // ----------------------------------------------------------
+  // SYSTEM
+  // ----------------------------------------------------------
+
+  system: {
+    info: () =>
+      api.get('/system/info'),
+  },
+
+  // ----------------------------------------------------------
+  // GIT
+  // ----------------------------------------------------------
+
+  git: {
+    status: () =>
+      api.get('/git/status'),
+
+    log: () =>
+      api.get('/git/log'),
+
+    branches: () =>
+      api.get('/git/branches'),
+
+    branch: () =>
+      api.get('/git/branch'),
+
+    diff: () =>
+      api.get('/git/diff'),
+
+    remote: () =>
+      api.get('/git/remote'),
+  },
+
+  // ----------------------------------------------------------
+  // FILES
+  // ----------------------------------------------------------
+
+  files: {
+    list: (path = '') =>
+      api.get('/files/list', {
+        params: path ? { path } : {},
+      }),
+
+    info: (path) =>
+      api.get('/files/info', {
+        params: {
+          path,
+        },
+      }),
+
+    search: (query, path = '') =>
+      api.get('/files/search', {
+        params: {
+          query,
+          ...(path ? { path } : {}),
+        },
+      }),
+
+    size: (path) =>
+      api.get('/files/size', {
+        params: {
+          path,
+        },
+      }),
+
+    read: (path) =>
+      api.get('/files/read', {
+        params: {
+          path,
+        },
+      }),
+
+    ask: (path, question) =>
+      api.post('/files/ask', {
+        path,
+        question,
+      }),
+
+    summarize: (path) =>
+      api.post('/files/summarize', {
+        path,
+      }),
+
+    exportPdf: (path) =>
+      api.get('/files/export-pdf', {
+        params: {
+          path,
+        },
+        responseType: 'blob',
+      }),
+  },
+
+  // ----------------------------------------------------------
+  // DATABASE
+  // ----------------------------------------------------------
+
+  database: {
+    tables: () =>
+      api.get('/database/tables'),
+
+    table: (tableName) =>
+      api.get(
+        `/database/table/${encodeURIComponent(
+          tableName
+        )}`
+      ),
+
+    query: (query) =>
+      api.post('/database/query', {
+        query,
+      }),
+  },
+
+  // ----------------------------------------------------------
+  // NOTIFICATIONS
+  // ----------------------------------------------------------
+
+  notifications: {
+    getAll: () =>
+      api.get('/notifications/'),
+
+    check: () =>
+      api.get('/notifications/check'),
+
+    markRead: (id) =>
+      api.post(`/notifications/${id}/read`),
+  },
+
+  // ==========================================================
+  // WEB RESEARCH
+  // ==========================================================
+
+  web: {
+    search: (query) =>
+      api.get('/web/search', {
+        params: {
+          query,
+        },
+      }),
+
+    read: (url) =>
+      api.post('/web/read', {
+        url,
+      }),
+
+    summarize: (url) =>
+      api.post('/web/summarize', {
+        url,
+      }),
+
+    ask: (url, question) =>
+      api.post('/web/ask', {
+        url,
+        question,
+      }),
+
+    research: (query) =>
+      api.post('/web/research', {
+        query,
+      }),
+  },
+};
+
+// ============================================================
+// IMAGE GENERATION
+// ============================================================
+
+export const images = {
+  generate: (
+    prompt,
+    provider = 'stability',
+    aspectRatio = '1:1'
+  ) =>
+    api.post('/images/generate', {
+      prompt,
+      provider,
+      aspect_ratio: aspectRatio,
+    }),
+
+  providers: () =>
+    api.get('/images/providers'),
+};
+
+// ============================================================
+// VIDEO GENERATION
+// ============================================================
+
+export const video = {
+  text: (
+    text,
+    duration = 8,
+    aspectRatio = '16:9',
+    resolution = '720p'
+  ) =>
+    api.post(
+      '/video/text',
+      {
+        text,
+        duration,
+        aspect_ratio: aspectRatio,
+        resolution,
+      },
+      {
+        responseType: 'blob',
+      }
+    ),
+
+  slideshow: (
+    images,
+    duration_per_image = 3
+  ) =>
+    api.post(
+      '/video/slideshow',
+      {
+        images,
+        duration_per_image,
+      },
+      {
+        responseType: 'blob',
+      }
+    ),
+};
+
+// ============================================================
+// VOICE
+// ============================================================
+
+export const voice = {
+  speak: (text) =>
+    api.post(
+      '/voice/speak',
+      {
+        text,
+      },
+      {
+        responseType: 'blob',
+      }
+    ),
+
+  listen: () =>
+    api.post('/voice/listen'),
+
+  chat: (message) =>
+    api.post('/voice/chat', {
+      message,
+    }),
+
+  wakeStart: () =>
+    api.get('/voice/wake/start'),
+
+  wakeStop: () =>
+    api.get('/voice/wake/stop'),
+
+  wakeStatus: () =>
+    api.get('/voice/wake/status'),
+};
+
+// ============================================================
+// SETTINGS
+// ============================================================
+
+export const settings = {
+  get: () =>
+    api.get('/settings/'),
+
+  update: (data) =>
+    api.put('/settings/', data),
+
+  reset: () =>
+    api.post('/settings/reset'),
+
+  tools: {
+    getAll: () =>
+      api.get('/settings/tools'),
+
+    update: (
+      toolName,
+      permission
+    ) =>
+      api.put(
+        `/settings/tool/${encodeURIComponent(
+          toolName
+        )}`,
+        null,
+        {
+          params: {
+            permission,
+          },
+        }
+      ),
+
+    updateAll: (permission) =>
+      api.put(
+        '/settings/tools/all',
+        null,
+        {
+          params: {
+            permission,
+          },
+        }
+      ),
+
+    reset: () =>
+      api.post('/settings/tools/reset'),
+  },
+
+  getToolPermission: (toolName) =>
+    api.get(
+      `/settings/tool/${encodeURIComponent(
+        toolName
+      )}`
+    ),
+
+  setToolPermission: (
+    toolName,
+    permission
+  ) =>
+    api.put(
+      `/settings/tool/${encodeURIComponent(
+        toolName
+      )}`,
+      null,
+      {
+        params: {
+          permission,
+        },
+      }
+    ),
+
+  getActiveModel: () =>
+    api.get('/settings/active-model'),
+};
+
+// ============================================================
+// UPLOADS
+// ============================================================
+
+export const upload = {
+  file: (formData) =>
+    api.post(
+      '/upload/file',
+      formData,
+      {
+        headers: {
+          'Content-Type':
+            'multipart/form-data',
+        },
+      }
+    ),
+};
+
+// ============================================================
+// PDF
+// ============================================================
+
+export const pdf = {
+  conversation: (conversationId) =>
+    api.get(
+      `/pdf/conversation/${conversationId}`,
+      {
+        responseType: 'blob',
+      }
+    ),
+
+  notes: () =>
+    api.get('/pdf/notes', {
+      responseType: 'blob',
+    }),
+
+  tasks: () =>
+    api.get('/pdf/tasks', {
+      responseType: 'blob',
+    }),
+};
+
+// ============================================================
+// MODELS
+// ============================================================
+
+export const models = {
+  getAll: () =>
+    api.get('/models/'),
+
+  available: () =>
+    api.get('/models/available'),
+
+  active: () =>
+    api.get('/models/active'),
+
+  activate: (modelName) =>
+    api.post(
+      `/models/activate/${encodeURIComponent(
+        modelName
+      )}`
+    ),
+
+  status: () =>
+    api.get('/models/status'),
+};
+
+// ============================================================
+// APPLICATIONS
+// ============================================================
+
+export const apps = {
+  list: () =>
+    api.get('/apps/list'),
+
+  launch: (appName) =>
+    api.post('/apps/launch', {
+      app_name: appName,
+    }),
+};
+
+// ============================================================
+// TERMINAL
+// ============================================================
+
+export const terminal = {
+  commands: () =>
+    api.get('/terminal/commands'),
+
+  run: (command) =>
+    api.post('/terminal/run', {
+      command,
+    }),
+};
+
+// ============================================================
+// CODE
+// ============================================================
+
+export const code = {
+  analyze: (codeContent) =>
+    api.post('/code/analyze', {
+      code: codeContent,
+    }),
+
+  function: (codeContent) =>
+    api.get('/code/function', {
+      params: {
+        code: codeContent,
+      },
+    }),
+};
+
+// ============================================================
+// API KEYS
+// ============================================================
+
+export const apiKeys = {
+  status: () =>
+    api.get('/api-keys/status'),
+};
+
+// ============================================================
+// DATA
+// ============================================================
+
+export const data = {
+  export: () =>
+    api.get('/data/export'),
+
+  import: (payload) =>
+    api.post('/data/import', payload),
+};
+
+// ============================================================
+// PROACTIVE
+// ============================================================
+
+export const proactive = {
+  check: () =>
+    api.get('/proactive/check'),
+
+  alerts: () =>
+    api.get('/proactive/alerts'),
+
+  clear: () =>
+    api.post('/proactive/clear'),
+};
+
+// ============================================================
+// CONTEXT
+// ============================================================
+
+export const context = {
+  get: () =>
+    api.get('/context/'),
+
+  update: (data) =>
+    api.put('/context/', data),
+
+  summary: () =>
+    api.get('/context/summary'),
+};
+
+// ============================================================
+// MARKDOWN
+// ============================================================
+
+export const markdown = {
+  render: (file) =>
+    api.post('/markdown/', {
+      file,
+    }),
+};
+
+// ============================================================
+// OCR
+// ============================================================
+
+export const ocr = {
+  process: (file) => {
+    const formData = new FormData();
+
+    formData.append('file', file);
+
+    return api.post(
+      '/ocr/',
+      formData,
+      {
+        headers: {
+          'Content-Type':
+            'multipart/form-data',
+        },
+      }
+    );
+  },
+};
+
+// ============================================================
+// EMAIL
+// ============================================================
+
+export const email = {
+  recent: () =>
+    api.get('/email/recent'),
+
+  summarize: (emailId) =>
+    api.get(
+      `/email/${emailId}/summarize`
+    ),
+
+  draft: (data) =>
+    api.post('/email/draft', data),
+
+  send: (data) =>
+    api.post('/email/send', data),
+
+  drafts: () =>
+    api.get('/email/drafts'),
+};
+
+// ============================================================
+// DEFAULT AXIOS CLIENT
+// ============================================================
+
+export default api;

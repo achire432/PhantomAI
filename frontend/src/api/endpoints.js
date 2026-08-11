@@ -20,6 +20,7 @@ api.interceptors.request.use(
     const token = localStorage.getItem('token');
 
     if (token) {
+      config.headers = config.headers || {};
       config.headers.Authorization = `Bearer ${token}`;
     }
 
@@ -42,7 +43,8 @@ export const auth = {
       }),
       {
         headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+          'Content-Type':
+            'application/x-www-form-urlencoded',
         },
       }
     ),
@@ -54,8 +56,7 @@ export const auth = {
       password,
     }),
 
-  me: () =>
-    api.get('/auth/me'),
+  me: () => api.get('/auth/me'),
 };
 
 // ============================================================
@@ -96,7 +97,9 @@ export const memory = {
     api.post('/memory/', data),
 
   delete: (key) =>
-    api.delete(`/memory/${encodeURIComponent(key)}`),
+    api.delete(
+      `/memory/${encodeURIComponent(key)}`
+    ),
 
   search: (query) =>
     api.get(
@@ -185,65 +188,66 @@ export const tools = {
   },
 
   // ----------------------------------------------------------
-// EMAIL
-// ----------------------------------------------------------
+  // EMAIL
+  // ----------------------------------------------------------
 
-email: {
-  getRecent: (limit = 10) =>
-    api.get('/email/recent', {
-      params: {
-        limit,
-      },
+  email: {
+    getRecent: (limit = 10) =>
+      api.get('/email/recent', {
+        params: {
+          limit,
+        },
+      }),
+
+    summarize: (id) =>
+      api.get(`/email/${id}/summarize`),
+
+    createDraft: (data) =>
+      api.post('/email/draft', data),
+
+    send: (data) =>
+      api.post('/email/send', data),
+
+    getDrafts: () =>
+      api.get('/email/drafts'),
+  },
+
+  // ----------------------------------------------------------
+  // CALCULATOR
+  // ----------------------------------------------------------
+
+  calculator: (expression) =>
+    api.post('/calculator/calculate', {
+      expression,
     }),
 
-  summarize: (id) =>
-    api.get(`/email/${id}/summarize`),
-
-  createDraft: (data) =>
-    api.post('/email/draft', data),
-
-  send: (data) =>
-    api.post('/email/send', data),
-
-  getDrafts: () =>
-    api.get('/email/drafts'),
-},
-
-// ----------------------------------------------------------
-// CALCULATOR
-// ----------------------------------------------------------
-
-calculator: (expression) =>
-  api.post('/calculator/calculate', {
-    expression,
-  }),
   // ----------------------------------------------------------
   // REMINDERS
   // ----------------------------------------------------------
 
   reminders: {
-  getAll: (upcoming = true) =>
-    api.get('/reminders/', {
-      params: {
-        upcoming,
-      },
-    }),
+    getAll: (upcoming = true) =>
+      api.get('/reminders/', {
+        params: {
+          upcoming,
+        },
+      }),
 
-  get: (id) =>
-    api.get(`/reminders/${id}`),
+    get: (id) =>
+      api.get(`/reminders/${id}`),
 
-  create: (data) =>
-    api.post('/reminders/', data),
+    create: (data) =>
+      api.post('/reminders/', data),
 
-  update: (id, data) =>
-    api.put(`/reminders/${id}`, data),
+    update: (id, data) =>
+      api.put(`/reminders/${id}`, data),
 
-  delete: (id) =>
-    api.delete(`/reminders/${id}`),
+    delete: (id) =>
+      api.delete(`/reminders/${id}`),
 
-  complete: (id) =>
-    api.post(`/reminders/${id}/complete`),
-},
+    complete: (id) =>
+      api.post(`/reminders/${id}/complete`),
+  },
 
   // ----------------------------------------------------------
   // SYSTEM
@@ -279,55 +283,63 @@ calculator: (expression) =>
   },
 
   // ----------------------------------------------------------
-// FILES
-// ----------------------------------------------------------
+  // FILES
+  // ----------------------------------------------------------
 
-files: {
-  list: (path = '') =>
-    api.get('/files/list', {
-      params: path ? { path } : {},
-    }),
+  files: {
+    list: (path = '') =>
+      api.get('/files/list', {
+        params: path ? { path } : {},
+      }),
 
-  info: (path) =>
-    api.get('/files/info', {
-      params: { path },
-    }),
+    info: (path) =>
+      api.get('/files/info', {
+        params: {
+          path,
+        },
+      }),
 
-  search: (query, path = '') =>
-    api.get('/files/search', {
-      params: {
-        query,
-        ...(path ? { path } : {}),
-      },
-    }),
+    search: (query, path = '') =>
+      api.get('/files/search', {
+        params: {
+          query,
+          ...(path ? { path } : {}),
+        },
+      }),
 
-  size: (path) =>
-    api.get('/files/size', {
-      params: { path },
-    }),
+    size: (path) =>
+      api.get('/files/size', {
+        params: {
+          path,
+        },
+      }),
 
-  read: (path) =>
-    api.get('/files/read', {
-      params: { path },
-    }),
+    read: (path) =>
+      api.get('/files/read', {
+        params: {
+          path,
+        },
+      }),
 
-  ask: (path, question) =>
-    api.post('/files/ask', {
-      path,
-      question,
-    }),
+    ask: (path, question) =>
+      api.post('/files/ask', {
+        path,
+        question,
+      }),
 
-  summarize: (path) =>
-    api.post('/files/summarize', {
-      path,
-    }),
+    summarize: (path) =>
+      api.post('/files/summarize', {
+        path,
+      }),
 
-  exportPdf: (path) =>
-    api.get('/files/export-pdf', {
-      params: { path },
-      responseType: 'blob',
-    }),
-},
+    exportPdf: (path) =>
+      api.get('/files/export-pdf', {
+        params: {
+          path,
+        },
+        responseType: 'blob',
+      }),
+  },
 
   // ----------------------------------------------------------
   // DATABASE
@@ -339,7 +351,9 @@ files: {
 
     table: (tableName) =>
       api.get(
-        `/database/table/${encodeURIComponent(tableName)}`
+        `/database/table/${encodeURIComponent(
+          tableName
+        )}`
       ),
 
     query: (query) =>
@@ -361,6 +375,40 @@ files: {
 
     markRead: (id) =>
       api.post(`/notifications/${id}/read`),
+  },
+
+  // ==========================================================
+  // WEB RESEARCH
+  // ==========================================================
+
+  web: {
+    search: (query) =>
+      api.get('/web/search', {
+        params: {
+          query,
+        },
+      }),
+
+    read: (url) =>
+      api.post('/web/read', {
+        url,
+      }),
+
+    summarize: (url) =>
+      api.post('/web/summarize', {
+        url,
+      }),
+
+    ask: (url, question) =>
+      api.post('/web/ask', {
+        url,
+        question,
+      }),
+
+    research: (query) =>
+      api.post('/web/research', {
+        query,
+      }),
   },
 };
 
@@ -389,11 +437,6 @@ export const images = {
 // ============================================================
 
 export const video = {
-  // ----------------------------------------------------------
-  // REAL AI TEXT → VIDEO
-  // Google Veo 3.1
-  // ----------------------------------------------------------
-
   text: (
     text,
     duration = 8,
@@ -412,10 +455,6 @@ export const video = {
         responseType: 'blob',
       }
     ),
-
-  // ----------------------------------------------------------
-  // IMAGES → SLIDESHOW
-  // ----------------------------------------------------------
 
   slideshow: (
     images,
@@ -472,10 +511,6 @@ export const voice = {
 // ============================================================
 
 export const settings = {
-  // ----------------------------------------------------------
-  // GENERAL SETTINGS
-  // ----------------------------------------------------------
-
   get: () =>
     api.get('/settings/'),
 
@@ -485,22 +520,18 @@ export const settings = {
   reset: () =>
     api.post('/settings/reset'),
 
-  // ----------------------------------------------------------
-  // TOOL PERMISSIONS
-  // ----------------------------------------------------------
-
   tools: {
-    // Get all permissions
     getAll: () =>
       api.get('/settings/tools'),
 
-    // Change one tool
     update: (
       toolName,
       permission
     ) =>
       api.put(
-        `/settings/tool/${encodeURIComponent(toolName)}`,
+        `/settings/tool/${encodeURIComponent(
+          toolName
+        )}`,
         null,
         {
           params: {
@@ -509,10 +540,7 @@ export const settings = {
         }
       ),
 
-    // Change every tool
-    updateAll: (
-      permission
-    ) =>
+    updateAll: (permission) =>
       api.put(
         '/settings/tools/all',
         null,
@@ -523,20 +551,15 @@ export const settings = {
         }
       ),
 
-    // Reset permissions
     reset: () =>
       api.post('/settings/tools/reset'),
   },
 
-  // ----------------------------------------------------------
-  // INDIVIDUAL TOOL PERMISSION
-  // ----------------------------------------------------------
-
-  getToolPermission: (
-    toolName
-  ) =>
+  getToolPermission: (toolName) =>
     api.get(
-      `/settings/tool/${encodeURIComponent(toolName)}`
+      `/settings/tool/${encodeURIComponent(
+        toolName
+      )}`
     ),
 
   setToolPermission: (
@@ -544,7 +567,9 @@ export const settings = {
     permission
   ) =>
     api.put(
-      `/settings/tool/${encodeURIComponent(toolName)}`,
+      `/settings/tool/${encodeURIComponent(
+        toolName
+      )}`,
       null,
       {
         params: {
@@ -552,10 +577,6 @@ export const settings = {
         },
       }
     ),
-
-  // ----------------------------------------------------------
-  // ACTIVE MODEL
-  // ----------------------------------------------------------
 
   getActiveModel: () =>
     api.get('/settings/active-model'),
@@ -572,7 +593,8 @@ export const upload = {
       formData,
       {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type':
+            'multipart/form-data',
         },
       }
     ),
@@ -618,7 +640,9 @@ export const models = {
 
   activate: (modelName) =>
     api.post(
-      `/models/activate/${encodeURIComponent(modelName)}`
+      `/models/activate/${encodeURIComponent(
+        modelName
+      )}`
     ),
 
   status: () =>
@@ -748,7 +772,8 @@ export const ocr = {
       formData,
       {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type':
+            'multipart/form-data',
         },
       }
     );
