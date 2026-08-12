@@ -72,6 +72,7 @@ from backend.app.routers.video import router as video_router
 from backend.app.routers.settings import router as settings_router
 from backend.app.routers.calculator import router as calculator_router
 from backend.app.routers.web import router as web_router
+from backend.app.routers.staff_database import router as staff_database_router
 
 
 # ============================================================
@@ -172,6 +173,7 @@ app.include_router(git_router)
 app.include_router(database_router)
 app.include_router(code_router)
 app.include_router(terminal_router)
+app.include_router(staff_database_router)
 
 # Applications / files
 app.include_router(apps_router)

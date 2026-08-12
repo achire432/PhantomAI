@@ -108,6 +108,21 @@ const Sidebar = () => {
         }}>
           ⚙ Settings
         </Link>
+        <Link
+          to="/database"
+          style={{
+          display: 'block',
+          padding: '12px 16px',
+          color: '#a0a0b0',
+          textDecoration: 'none',
+          borderRadius: '8px',
+          marginBottom: '4px',
+          fontSize: '14px',
+          fontWeight: '500',
+          transition: 'all 0.2s',
+        }}>
+          🗄️ Database
+        </Link>
       </nav>
 
       <div style={{

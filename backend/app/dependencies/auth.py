@@ -52,6 +52,13 @@ def get_current_user(
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+        # Disabled accounts cannot continue
+        if not user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="User account is inactive.",
+            )
+
         return user
 
     except HTTPException:
@@ -70,3 +77,59 @@ def get_current_user(
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
+
+
+# ============================================================
+# STAFF AUTHORIZATION
+# ============================================================
+
+def require_staff(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    Require an authenticated staff member.
+
+    Authentication:
+        User must have a valid JWT.
+
+    Authorization:
+        User must have:
+            is_staff = True
+
+    This dependency does NOT grant unrestricted access to
+    sensitive credentials.
+    """
+
+    if not current_user.is_staff:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff authorization required.",
+        )
+
+    return current_user
+
+
+# ============================================================
+# ADMIN AUTHORIZATION
+# ============================================================
+
+def require_admin(
+    current_user: User = Depends(get_current_user),
+) -> User:
+    """
+    Require an authenticated administrator.
+    """
+
+    if not current_user.is_staff:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Staff authorization required.",
+        )
+
+    if current_user.role.lower() != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Administrator authorization required.",
+        )
+
+    return current_user

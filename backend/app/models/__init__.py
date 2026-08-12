@@ -10,3 +10,4 @@ from backend.app.models.context import UserContext
 from backend.app.models.memory import Memory
 from backend.app.models.email import Email, EmailDraft
 from backend.app.models.settings import UserSettings 
+from backend.app.models.audit_log import AuditLog

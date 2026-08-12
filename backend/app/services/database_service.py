@@ -1,207 +1,341 @@
 """
-DATABASE SERVICE
-=================
-Purpose: Allow PhantomAI to query the database safely.
+PhantomAI Database Service
 
-Why This Matters:
-- Users need to check database data
-- PhantomAI can answer data questions
-- Makes PhantomAI a database expert
+Read-only database explorer.
 
-How It Works:
-1. Takes a SQL query
-2. Validates it's safe
-3. Runs it on PostgreSQL
-4. Returns the results
-
-Safety:
-- Only SELECT queries allowed
-- Query preview before execution
-- Max 100 rows returned
-- No dangerous commands
+Security rules:
+- SELECT statements only
+- One SQL statement per request
+- Maximum 100 returned rows
+- No INSERT/UPDATE/DELETE/DROP/etc.
+- Password/credential columns are never exposed
+- Database metadata is restricted to public schema
 """
+
+import re
 
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-import re
 
-# List of forbidden SQL commands
-FORBIDDEN = [
-    "DROP", "DELETE", "UPDATE", "INSERT", 
-    "ALTER", "TRUNCATE", "GRANT", "REVOKE",
-    "CREATE", "DROP", "RENAME"
-]
+
+MAX_ROWS = 100
+
+FORBIDDEN_COMMANDS = {
+    "INSERT",
+    "UPDATE",
+    "DELETE",
+    "DROP",
+    "ALTER",
+    "TRUNCATE",
+    "CREATE",
+    "GRANT",
+    "REVOKE",
+    "RENAME",
+    "COMMENT",
+    "VACUUM",
+    "ANALYZE",
+    "CALL",
+    "DO",
+}
+
+# Never expose credential material through the explorer.
+SENSITIVE_COLUMNS = {
+    "password",
+    "password_hash",
+    "hashed_password",
+    "passwd",
+    "passhash",
+    "secret",
+    "secret_key",
+    "api_key",
+    "access_token",
+    "refresh_token",
+    "token",
+    "private_key",
+}
+
 
 def validate_query(query: str) -> dict:
     """
-    Validate a SQL query for safety.
-    
-    Checks:
-    1. Is it a SELECT query?
-    2. Does it contain forbidden commands?
-    3. Does it have a LIMIT?
-    
-    Returns:
-    {
-        "valid": True/False,
-        "error": "Error message if invalid"
-    }
+    Validate an incoming SQL query.
+
+    Only one SELECT statement is permitted.
     """
-    query_upper = query.upper()
-    
-    # Check for forbidden commands
-    for forbidden in FORBIDDEN:
-        if forbidden in query_upper:
-            return {
-                "valid": False,
-                "error": f"FORBIDDEN: '{forbidden}' is not allowed. Only SELECT queries are permitted."
-            }
-    
-    # Check if it's a SELECT query
-    if not query_upper.strip().startswith("SELECT"):
+
+    if not isinstance(query, str):
         return {
             "valid": False,
-            "error": "Only SELECT queries are allowed for safety."
+            "error": "Query must be a string."
         }
-    
-    # Check if it has a LIMIT (safety)
-    if "LIMIT" not in query_upper:
+
+    query = query.strip()
+
+    if not query:
         return {
-            "valid": True,
-            "warning": "No LIMIT specified. Results will be limited to 100 rows."
+            "valid": False,
+            "error": "Query cannot be empty."
         }
-    
+
+    # Remove one trailing semicolon for validation.
+    cleaned = query.rstrip(";").strip()
+
+    # Reject multiple statements.
+    if ";" in cleaned:
+        return {
+            "valid": False,
+            "error": "Multiple SQL statements are not allowed."
+        }
+
+    query_upper = cleaned.upper()
+
+    # Must begin with SELECT.
+    if not re.match(r"^SELECT\b", query_upper):
+        return {
+            "valid": False,
+            "error": "Only SELECT queries are permitted."
+        }
+
+    # Block dangerous SQL keywords.
+    for command in FORBIDDEN_COMMANDS:
+        if re.search(rf"\b{re.escape(command)}\b", query_upper):
+            return {
+                "valid": False,
+                "error": (
+                    f"FORBIDDEN: '{command}' is not allowed. "
+                    "Only SELECT queries are permitted."
+                )
+            }
+
     return {
         "valid": True,
-        "warning": None
+        "query": cleaned
     }
+
+
+def _contains_sensitive_column(query: str) -> str | None:
+    """
+    Detect explicit references to protected credential columns.
+
+    This intentionally blocks explicit credential access rather than
+    trying to infer whether the caller 'should' be allowed to see hashes.
+    """
+
+    for column in SENSITIVE_COLUMNS:
+        if re.search(
+            rf"\b{re.escape(column)}\b",
+            query,
+            re.IGNORECASE
+        ):
+            return column
+
+    return None
+
+
+def _enforce_limit(query: str) -> str:
+    """
+    Ensure query returns at most MAX_ROWS rows.
+    """
+
+    # Existing numeric LIMIT
+    limit_match = re.search(
+        r"\bLIMIT\s+(\d+)",
+        query,
+        re.IGNORECASE
+    )
+
+    if limit_match:
+        requested_limit = int(limit_match.group(1))
+
+        if requested_limit > MAX_ROWS:
+            query = re.sub(
+                r"\bLIMIT\s+\d+",
+                f"LIMIT {MAX_ROWS}",
+                query,
+                count=1,
+                flags=re.IGNORECASE
+            )
+
+        return query
+
+    # No LIMIT supplied.
+    return f"{query} LIMIT {MAX_ROWS}"
+
 
 def execute_query(db, query: str) -> dict:
     """
-    Execute a SQL query safely.
-    
-    How It Works:
-    1. Validates the query
-    2. Runs it with a LIMIT
-    3. Returns the results
-    
-    Returns:
-    {
-        "success": True,
-        "data": [{"column1": "value1", ...}],
-        "row_count": 5
-    }
+    Execute a safe read-only SELECT query.
     """
+
     try:
-        # Validate the query
+
+        # --------------------------------------------------
+        # VALIDATE
+        # --------------------------------------------------
+
         validation = validate_query(query)
+
         if not validation["valid"]:
             return {
                 "success": False,
                 "error": validation["error"]
             }
-        
-        # Add LIMIT if not present
-        query = query.rstrip()
-        if "LIMIT" not in query.upper():
-            query = f"{query} LIMIT 100"
-        
-        # Execute the query
+
+        query = validation["query"]
+
+        # --------------------------------------------------
+        # PROTECT SENSITIVE COLUMNS
+        # --------------------------------------------------
+
+        sensitive_column = _contains_sensitive_column(query)
+
+        if sensitive_column:
+            return {
+                "success": False,
+                "error": (
+                    f"Access to sensitive column "
+                    f"'{sensitive_column}' is not permitted "
+                    "through the database explorer."
+                )
+            }
+
+        # --------------------------------------------------
+        # LIMIT RESULTS
+        # --------------------------------------------------
+
+        query = _enforce_limit(query)
+
+        # --------------------------------------------------
+        # EXECUTE
+        # --------------------------------------------------
+
         result = db.execute(text(query))
-        
-        # Get column names
-        columns = result.keys()
-        
-        # Convert to list of dictionaries
+
+        columns = list(result.keys())
+
         data = []
+
         for row in result:
             row_dict = {}
-            for idx, column in enumerate(columns):
-                row_dict[column] = row[idx]
+
+            for index, column in enumerate(columns):
+                row_dict[column] = row[index]
+
             data.append(row_dict)
-        
+
         return {
             "success": True,
             "data": data,
             "row_count": len(data),
-            "columns": list(columns),
-            "query": query
+            "columns": columns,
+            "query": query,
+            "max_rows": MAX_ROWS
         }
-        
+
     except SQLAlchemyError as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
-    except Exception as e:
+
         return {
             "success": False,
             "error": str(e)
         }
 
-def get_tables(db) -> list:
+    except Exception as e:
+
+        return {
+            "success": False,
+            "error": str(e)
+        }
+
+
+def get_tables(db) -> dict:
     """
-    Get all tables in the database.
-    
-    Returns:
-    {
-        "tables": ["users", "conversations", "messages"]
-    }
+    Return tables from the public schema.
     """
+
     try:
-        result = db.execute(text("""
-            SELECT table_name 
-            FROM information_schema.tables 
-            WHERE table_schema = 'public'
-            ORDER BY table_name
-        """))
-        
+
+        result = db.execute(
+            text(
+                """
+                SELECT table_name
+                FROM information_schema.tables
+                WHERE table_schema = 'public'
+                ORDER BY table_name
+                """
+            )
+        )
+
         tables = [row[0] for row in result]
+
         return {
             "success": True,
             "tables": tables
         }
-        
+
     except Exception as e:
+
         return {
             "success": False,
             "error": str(e)
         }
 
+
 def get_table_info(db, table_name: str) -> dict:
     """
-    Get information about a specific table.
-    
-    Returns:
-    {
-        "columns": [{"name": "id", "type": "integer"}, ...]
-    }
+    Return safe structural information about a table.
     """
+
     try:
-        result = db.execute(text("""
-            SELECT 
-                column_name,
-                data_type,
-                is_nullable
-            FROM information_schema.columns
-            WHERE table_name = :table_name
-            ORDER BY ordinal_position
-        """), {"table_name": table_name})
-        
+
+        result = db.execute(
+            text(
+                """
+                SELECT
+                    column_name,
+                    data_type,
+                    is_nullable
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = :table_name
+                ORDER BY ordinal_position
+                """
+            ),
+            {
+                "table_name": table_name
+            }
+        )
+
         columns = []
+
         for row in result:
-            columns.append({
-                "name": row[0],
-                "type": row[1],
-                "nullable": row[2] == "YES"
-            })
-        
+
+            column_name = row[0]
+
+            columns.append(
+                {
+                    "name": column_name,
+                    "type": row[1],
+                    "nullable": row[2] == "YES",
+                    "sensitive": (
+                        column_name.lower()
+                        in SENSITIVE_COLUMNS
+                    )
+                }
+            )
+
+        if not columns:
+            return {
+                "success": False,
+                "error": f"Table '{table_name}' was not found."
+            }
+
         return {
             "success": True,
+            "table": table_name,
             "columns": columns
         }
-        
+
     except Exception as e:
+
         return {
             "success": False,
             "error": str(e)

@@ -10,6 +10,7 @@ import Memory from '../pages/Memory';
 import Tools from '../pages/Tools';
 import Voice from '../pages/Voice';
 import Settings from '../pages/Settings';
+import Database from '../pages/Database';
 
 const router = createBrowserRouter([
   {
@@ -60,6 +61,12 @@ const router = createBrowserRouter([
     path: '/register',
     element: <Register />,
   },
+
+  {
+  path: 'database',
+  element: <Database />,
+  },
+  
 ]);
 
 export default router;
