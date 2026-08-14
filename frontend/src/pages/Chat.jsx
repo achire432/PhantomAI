@@ -146,15 +146,7 @@ const Chat = () => {
               <h2 style={{ color: '#fff', fontSize: '18px', fontWeight: '600' }}>
                 💬 {conversationTitle}
               </h2>
-              <p style={{ color: '#606080', fontSize: '12px' }}>
-                Connected to Qwen3-4B
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-              <span style={{ color: '#60d060', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                <span style={{ width: '8px', height: '8px', background: '#60d060', borderRadius: '50%', display: 'inline-block' }}></span>
-                Online
-              </span>
+              
             </div>
           </div>
 

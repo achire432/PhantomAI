@@ -25,9 +25,25 @@ const Sidebar = () => {
       zIndex: 10,
       padding: '20px',
     }}>
-      <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ color: '#00d4ff', fontSize: '24px', fontWeight: '700' }}>🧠 PHANTOMAI</h1>
-      </div>
+      <div
+  style={{
+    marginBottom: '32px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  }}
+>
+  <img
+    src="/assets/phantom-logo.png"
+    alt="PhantomAI"
+    style={{
+      width: '170px',
+      height: 'auto',
+      objectFit: 'contain',
+      display: 'block',
+    }}
+  />
+</div>
 
       <nav style={{ flex: 1 }}>
         <Link to="/chat" style={{
@@ -152,9 +168,6 @@ const Sidebar = () => {
           <div>
             <div style={{ fontSize: '14px', fontWeight: '600', color: '#ffffff' }}>
               {user?.full_name || 'User'}
-            </div>
-            <div style={{ fontSize: '12px', color: '#60d060' }}>
-              ● Online
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import React from 'react';
 
-const LOGO_SVG = '/assets/phantom-logo.svg';
+const LOGO_SVG = '/assets/phantom-logo.png';
 
 const PhantomLogo = ({ variant = 'full', size = 'medium', animated = false, className = '' }) => {
   const sizeMap = {

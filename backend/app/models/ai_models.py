@@ -1,13 +1,26 @@
 import os
 from typing import List, Optional
 
+from dotenv import load_dotenv
+
+
+# ============================================================
+# LOAD ENVIRONMENT
+# ============================================================
+
+load_dotenv()
+
+
+# ============================================================
+# AI MODEL
+# ============================================================
 
 class AIModel:
     """
     Represents an AI model registered inside PhantomAI.
 
-    This class only describes the model.
-    It does not communicate with the provider.
+    This class describes the model only.
+    It does not communicate with the AI provider.
     """
 
     def __init__(
@@ -23,7 +36,9 @@ class AIModel:
         self.model_type = model_type
         self.description = description
         self.provider = provider
-        self.provider_model = provider_model or name
+        self.provider_model = (
+            provider_model or name
+        )
         self.requires_api_key = requires_api_key
         self.is_active = False
 
@@ -39,15 +54,19 @@ class AIModel:
         }
 
 
+# ============================================================
+# MODEL REGISTRY
+# ============================================================
+
 class ModelRegistry:
     """
     Central registry for all PhantomAI AI models.
 
-    The registry knows:
-    - which models exist
-    - which provider they belong to
-    - which model is active
-    - whether a model is available
+    Handles:
+    - Model registration
+    - Model selection
+    - Active model
+    - Availability
     """
 
     def __init__(self):
@@ -58,31 +77,42 @@ class ModelRegistry:
     # REGISTER
     # ========================================================
 
-    def register(self, model: AIModel) -> None:
-        """Register an AI model."""
-        self.models[model.name] = model
+    def register(
+        self,
+        model: AIModel,
+    ) -> None:
+
+        self.models[
+            model.name
+        ] = model
 
     # ========================================================
     # ACTIVATE
     # ========================================================
 
-    def activate(self, model_name: str) -> bool:
-        """
-        Activate one model and deactivate all others.
-        """
+    def activate(
+        self,
+        model_name: str,
+    ) -> bool:
 
         if model_name not in self.models:
             return False
 
-        selected_model = self.models[model_name]
-
-        if not self.is_available(model_name):
+        if not self.is_available(
+            model_name
+        ):
             return False
 
         for model in self.models.values():
+
             model.is_active = False
 
+        selected_model = self.models[
+            model_name
+        ]
+
         selected_model.is_active = True
+
         self.active_model = model_name
 
         return True
@@ -91,29 +121,37 @@ class ModelRegistry:
     # GET ACTIVE
     # ========================================================
 
-    def get_active(self) -> Optional[AIModel]:
-        """Return the currently active model."""
+    def get_active(
+        self,
+    ) -> Optional[AIModel]:
 
-        if self.active_model is None:
+        if not self.active_model:
             return None
 
-        return self.models.get(self.active_model)
+        return self.models.get(
+            self.active_model
+        )
 
     # ========================================================
     # GET MODEL
     # ========================================================
 
-    def get(self, model_name: str) -> Optional[AIModel]:
-        """Return one registered model."""
+    def get(
+        self,
+        model_name: str,
+    ) -> Optional[AIModel]:
 
-        return self.models.get(model_name)
+        return self.models.get(
+            model_name
+        )
 
     # ========================================================
     # GET ALL
     # ========================================================
 
-    def get_all(self) -> List[dict]:
-        """Return all registered models."""
+    def get_all(
+        self,
+    ) -> List[dict]:
 
         return [
             model.to_dict()
@@ -124,21 +162,26 @@ class ModelRegistry:
     # MODEL NAMES
     # ========================================================
 
-    def get_model_names(self) -> List[str]:
-        """Return all registered model names."""
+    def get_model_names(
+        self,
+    ) -> List[str]:
 
-        return list(self.models.keys())
+        return list(
+            self.models.keys()
+        )
 
     # ========================================================
     # AVAILABILITY
     # ========================================================
 
-    def is_available(self, model_name: str) -> bool:
-        """
-        Check whether a model can currently be used.
-        """
+    def is_available(
+        self,
+        model_name: str,
+    ) -> bool:
 
-        model = self.models.get(model_name)
+        model = self.models.get(
+            model_name
+        )
 
         if not model:
             return False
@@ -147,19 +190,44 @@ class ModelRegistry:
             return True
 
         if model.provider == "Groq":
-            return bool(os.getenv("GROQ_API_KEY"))
+
+            return bool(
+                os.getenv(
+                    "GROQ_API_KEY"
+                )
+            )
 
         if model.provider == "OpenAI":
-            return bool(os.getenv("OPENAI_API_KEY"))
+
+            return bool(
+                os.getenv(
+                    "OPENAI_API_KEY"
+                )
+            )
 
         if model.provider == "Anthropic":
-            return bool(os.getenv("ANTHROPIC_API_KEY"))
+
+            return bool(
+                os.getenv(
+                    "ANTHROPIC_API_KEY"
+                )
+            )
 
         if model.provider == "Google":
-            return bool(os.getenv("GOOGLE_API_KEY"))
+
+            return bool(
+                os.getenv(
+                    "GOOGLE_API_KEY"
+                )
+            )
 
         if model.provider == "DeepSeek":
-            return bool(os.getenv("DEEPSEEK_API_KEY"))
+
+            return bool(
+                os.getenv(
+                    "DEEPSEEK_API_KEY"
+                )
+            )
 
         return False
 
@@ -167,37 +235,44 @@ class ModelRegistry:
     # AVAILABLE MODELS
     # ========================================================
 
-    def get_available_models(self) -> List[dict]:
-        """
-        Return models that are currently available.
-        """
+    def get_available_models(
+        self,
+    ) -> List[dict]:
 
         available = []
 
         for model in self.models.values():
 
-            if self.is_available(model.name):
-                available.append(model.to_dict())
+            if self.is_available(
+                model.name
+            ):
+
+                available.append(
+                    model.to_dict()
+                )
 
         return available
 
 
 # ============================================================
-# GLOBAL MODEL REGISTRY
+# GLOBAL REGISTRY
 # ============================================================
 
 model_registry = ModelRegistry()
 
 
 # ============================================================
-# LOCAL MODEL
+# LOCAL QWEN
 # ============================================================
 
 model_registry.register(
     AIModel(
         name="qwen-4b",
         model_type="local",
-        description="Qwen3-4B running locally on this computer.",
+        description=(
+            "Qwen3-4B running locally "
+            "on this computer."
+        ),
         provider="Local",
         provider_model="qwen-4b",
         requires_api_key=False,
@@ -206,7 +281,7 @@ model_registry.register(
 
 
 # ============================================================
-# GROQ
+# GROQ LLAMA 3.1 8B
 # ============================================================
 
 if os.getenv("GROQ_API_KEY"):
@@ -215,9 +290,37 @@ if os.getenv("GROQ_API_KEY"):
         AIModel(
             name="groq-llama3",
             model_type="cloud",
-            description="Llama 3.1 8B running through Groq.",
+            description=(
+                "Llama 3.1 8B running "
+                "through Groq."
+            ),
             provider="Groq",
-            provider_model="llama-3.1-8b-instant",
+            provider_model=(
+                "llama-3.1-8b-instant"
+            ),
+            requires_api_key=True,
+        )
+    )
+
+
+# ============================================================
+# GROQ LLAMA 3.3 70B
+# ============================================================
+
+if os.getenv("GROQ_API_KEY"):
+
+    model_registry.register(
+        AIModel(
+            name="groq-llama3.3",
+            model_type="cloud",
+            description=(
+                "Llama 3.3 70B running "
+                "through Groq."
+            ),
+            provider="Groq",
+            provider_model=(
+                "llama-3.3-70b-versatile"
+            ),
             requires_api_key=True,
         )
     )
@@ -233,7 +336,9 @@ if os.getenv("OPENAI_API_KEY"):
         AIModel(
             name="gpt-4o-mini",
             model_type="cloud",
-            description="OpenAI GPT-4o-mini.",
+            description=(
+                "OpenAI GPT-4o-mini."
+            ),
             provider="OpenAI",
             provider_model="gpt-4o-mini",
             requires_api_key=True,
@@ -251,7 +356,9 @@ if os.getenv("ANTHROPIC_API_KEY"):
         AIModel(
             name="claude-3-opus",
             model_type="cloud",
-            description="Anthropic Claude.",
+            description=(
+                "Anthropic Claude."
+            ),
             provider="Anthropic",
             provider_model="claude-3-opus",
             requires_api_key=True,
@@ -269,7 +376,9 @@ if os.getenv("GOOGLE_API_KEY"):
         AIModel(
             name="gemini",
             model_type="cloud",
-            description="Google Gemini model.",
+            description=(
+                "Google Gemini model."
+            ),
             provider="Google",
             provider_model="gemini",
             requires_api_key=True,
@@ -287,7 +396,9 @@ if os.getenv("DEEPSEEK_API_KEY"):
         AIModel(
             name="deepseek",
             model_type="cloud",
-            description="DeepSeek AI model.",
+            description=(
+                "DeepSeek AI model."
+            ),
             provider="DeepSeek",
             provider_model="deepseek-chat",
             requires_api_key=True,
@@ -299,13 +410,23 @@ if os.getenv("DEEPSEEK_API_KEY"):
 # DEFAULT MODEL
 # ============================================================
 
-if "groq-llama3" in model_registry.models:
+if "groq-llama3.3" in model_registry.models:
 
-    model_registry.activate("groq-llama3")
+    model_registry.activate(
+        "groq-llama3.3"
+    )
+
+elif "groq-llama3" in model_registry.models:
+
+    model_registry.activate(
+        "groq-llama3"
+    )
 
 elif "qwen-4b" in model_registry.models:
 
-    model_registry.activate("qwen-4b")
+    model_registry.activate(
+        "qwen-4b"
+    )
 
 
 # ============================================================
@@ -313,6 +434,8 @@ elif "qwen-4b" in model_registry.models:
 # ============================================================
 
 def get_model_registry() -> ModelRegistry:
-    """Return the global model registry."""
+    """
+    Return the global PhantomAI model registry.
+    """
 
     return model_registry

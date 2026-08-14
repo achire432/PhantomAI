@@ -5,7 +5,6 @@ import ProductivityTools from '../components/tools/ProductivityTools';
 import ImageGenerationTool from '../components/tools/ImageGenerationTool';
 import VideoGenerationTool from '../components/tools/VideoGenerationTool';
 import PDFTools from '../components/tools/PDFTools';
-import NotesTool from '../components/tools/NotesTool';
 import RemindersTool from '../components/tools/RemindersTool';
 import TasksTool from '../components/tools/TasksTool';
 import CalendarTool from '../components/tools/CalendarTool';
@@ -36,13 +35,6 @@ const TOOL_LIST = [
     category: 'AI Generation',
   },
 
-  {
-    id: 'pdf',
-    name: 'PDF Tools',
-    icon: '📄',
-    description: 'Upload, analyze and export PDF documents.',
-    category: 'Documents',
-  },
 
   {
     id: 'voice',
@@ -50,22 +42,6 @@ const TOOL_LIST = [
     icon: '🎤',
     description: 'Talk with PhantomAI using your voice.',
     category: 'AI',
-  },
-
-  {
-    id: 'database',
-    name: 'Database',
-    icon: '🗄️',
-    description: 'Inspect and work with databases.',
-    category: 'Development',
-  },
-
-  {
-    id: 'code',
-    name: 'Code Analysis',
-    icon: '💻',
-    description: 'Analyze, explain and inspect code.',
-    category: 'Development',
   },
 
   {
@@ -234,7 +210,7 @@ const Tools = () => {
         return <PDFTools />;
 
       case 'notes':
-        return <NotesTool />;
+        return <ProductivityTools />;
 
       case 'reminders':
         return <RemindersTool />;
